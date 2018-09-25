@@ -21,12 +21,12 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "home.html")
 }
 
-func ChatServerInit(hub *Hub) {
+func ChatServerInit(session *Session) {
 	flag.Parse()
-	go hub.run()
+	go session.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, w, r)
+		serveWs(session, w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {

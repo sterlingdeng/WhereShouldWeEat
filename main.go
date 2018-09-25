@@ -18,13 +18,27 @@ const newSessionRandomInt int = 9999
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
-	ID            int              `json:"id"`
-	MaxPartySize  int              `json:"MaxPartySize"`
-	CurrPartySize int              `json:"CurrPartySize"`
-	Users         map[string]*User `json:"users"`
-	Location      string           `json:"location"`
-	Hub           *Hub
-	BusinessList  map[string]*BusinessData
+	ID            int                      `json:"id"`
+	MaxPartySize  int                      `json:"MaxPartySize"`
+	CurrPartySize int                      `json:"CurrPartySize"`
+	Users         map[string]*User         `json:"users"`
+	Location      string                   `json:"location"`
+	BusinessList  map[string]*BusinessData `json:"bizList"`
+	Messages      []string                 `json:"messages"`
+
+	clients map[*User]bool
+
+	// Inbound messages from the clients
+	broadcast chan Msg
+
+	// Register request from clients
+	register chan *User
+
+	// Unregister request from  clients
+	unregister chan *User
+
+	// Read message from client and adds info to db
+	read chan Msg
 }
 
 func (s *Session) hasUser(uid string) bool {
@@ -62,7 +76,9 @@ func (s *Session) businessExist(bid string) bool {
 func (s *Session) addBusiness(b *BusinessData) {
 	if s.businessExist(b.ID) == false {
 		s.BusinessList[b.ID] = b
+		// send information to users that the business list got updated
 	}
+
 }
 
 // SessionManager manages all active sessions and provides methods to handle sessions
@@ -99,22 +115,36 @@ func (s *SessionManager) add(session *Session) bool {
 func (s *SessionManager) initSession(location string) Session {
 	//create a new session... add session to the session manager
 
-	newSession := Session{rand.Intn(newSessionRandomInt), maxPartySize, 0, make(map[string]*User), location, NewHub(), make(map[string]*BusinessData)}
-	s.add(&newSession)
+	session := Session{
+		ID:            rand.Intn(newSessionRandomInt),
+		MaxPartySize:  maxPartySize,
+		CurrPartySize: 0,
+		Users:         make(map[string]*User),
+		Location:      location,
+		BusinessList:  make(map[string]*BusinessData),
+		Messages:      make([]string, 100),
+		clients:       make(map[*User]bool),
+		broadcast:     make(chan Msg),
+		register:      make(chan *User),
+		unregister:    make(chan *User),
+		read:          make(chan Msg),
+	}
+
+	s.add(&session)
 
 	// initialize chat server
 	fmt.Println("initialization chat server")
-	go ChatServerInit(newSession.Hub)
+	go ChatServerInit(&session)
 
-	return newSession
+	return session
 }
 
 // User struct to handle individual users within Sessions
 type User struct {
 	Username string `json:"username"`
-	hub      *Hub
+	session  *Session
 	conn     *websocket.Conn // Websocket Connection
-	send     chan []byte     // Buffered channel of outbound messages
+	send     chan Msg        // Buffered channel of outbound messages
 }
 
 // Init books var as a slice Book struct

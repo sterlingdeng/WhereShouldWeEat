@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"net/http"
 	"time"
@@ -44,22 +43,29 @@ var upgrader = websocket.Upgrader{
 // reads from this goroutine.
 func (c *User) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.session.unregister <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.conn.ReadMessage()
+
+		msg := Msg{}
+
+		err := c.conn.ReadJSON(&msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+
+		// _, message, err := c.conn.ReadMessage()
+
+		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		c.session.read <- msg
+		c.session.broadcast <- msg
 	}
 }
 
@@ -84,22 +90,22 @@ func (c *User) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
+			// w, err := c.conn.NextWriter(websocket.TextMessage)
+			// if err != nil {
+			// 	return
+			// }
+			c.conn.WriteJSON(&message)
 
 			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
-			}
+			// n := len(c.send)
+			// for i := 0; i < n; i++ {
+			// 	w.Write(newline)
+			// 	w.Write(<-c.send)
+			// }
 
-			if err := w.Close(); err != nil {
-				return
-			}
+			// if err := w.Close(); err != nil {
+			// 	return
+			// }
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -109,14 +115,14 @@ func (c *User) writePump() {
 	}
 }
 
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func serveWs(session *Session, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	user := &User{hub: hub, conn: conn, send: make(chan []byte, 256)}
-	user.hub.register <- user
+	user := &User{session: session, conn: conn, send: make(chan Msg, 256)}
+	user.session.register <- user
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
