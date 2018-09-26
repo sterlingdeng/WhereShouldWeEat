@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -46,6 +47,7 @@ func (c *User) readPump() {
 		c.session.unregister <- c
 		c.conn.Close()
 	}()
+
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -60,7 +62,7 @@ func (c *User) readPump() {
 			}
 			break
 		}
-
+		fmt.Print("incoming message")
 		// _, message, err := c.conn.ReadMessage()
 
 		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))

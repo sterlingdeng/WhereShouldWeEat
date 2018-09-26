@@ -26,6 +26,7 @@ func ChatServerInit(session *Session) {
 	go session.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		r.Header["Origin"] = nil
 		serveWs(session, w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)

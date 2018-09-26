@@ -65,7 +65,8 @@ func (s *Session) run() {
 		case message := <-s.read:
 			// if message contains business info, need to add to busines list
 			// if message contains Message.. add to Messages
-
+			fmt.Printf("Reading Message")
+			fmt.Print(message)
 			if &message.Business != nil {
 				s.BusinessList[message.Business.ID] = &message.Business
 			} else if &message.Message != nil {

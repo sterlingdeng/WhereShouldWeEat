@@ -12,8 +12,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const maxPartySize int = 10
-const newSessionRandomInt int = 9999
+const (
+	maxPartySize        int    = 10
+	newSessionRandomInt int    = 9999
+	currURL             string = "localhost" + port
+	port                string = ":8000"
+	wsport              string = ":8080"
+	wsURL               string = "localhost" + wsport
+)
 
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
@@ -133,7 +139,7 @@ func (s *SessionManager) initSession(location string) Session {
 	s.add(&session)
 
 	// initialize chat server
-	fmt.Println("initialization chat server")
+	fmt.Println("initialize chat server")
 	go ChatServerInit(&session)
 
 	return session
@@ -169,21 +175,31 @@ json: {
 func createSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// req struct provides a target to unpack the JSON data to
 	var req struct {
 		Username string `json:"username"`
 		Location string `json:"location"`
 	}
 
-	json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	session := manager.initSession(req.Location)
 
 	user := User{Username: req.Username}
 
 	manager.ActiveSessions[session.ID].addUser(user)
+	manager.ActiveSessions[session.ID].Location = req.Location
+	json.NewEncoder(w).Encode(manager.ActiveSessions[session.ID])
 
-	fmt.Println(manager.ActiveSessions)
-	json.NewEncoder(w).Encode(manager.ActiveSessions)
+	// sid := manager.ActiveSessions[session.ID].ID
+	// redirectWsURL := wsURL + "/JoinSession?id=" + strconv.Itoa(sid) + "&username=" + req.Username
+	// fmt.Println("redirected to %s", redirectWsURL)
+	// http.Redirect(w, r, redirectWsURL, 301)
+
 }
 
 /*
@@ -208,7 +224,7 @@ func joinSession(w http.ResponseWriter, r *http.Request) {
 		// once session is found, need to connect user to the session, maybe this is where we initiate a websocket connection?
 
 	} else {
-		fmt.Println("not found")
+		fmt.Println("session not found")
 
 		// if session is not found, need to send not found to front end
 	}
@@ -237,6 +253,10 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func handleLanding(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func main() {
 	// Initialize Router
 	r := mux.NewRouter()
@@ -247,7 +267,8 @@ func main() {
 
 	// Yelp API handlers
 	r.HandleFunc("/yelpdata", handleClientYelpReq).Methods("GET")
+	r.HandleFunc("/", handleLanding).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(":8000", r))
+	log.Fatal(http.ListenAndServe(port, r))
 
 }

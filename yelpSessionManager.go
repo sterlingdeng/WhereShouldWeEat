@@ -56,7 +56,7 @@ type MappedYelpResponse struct {
 	MappedBusinessStruct map[string]*BusinessData
 }
 
-// ConvertYelpResponseToMappedYelpResponse converts the YelpResponse struc to the mapped data structure, with the key as the ID and value as the BusinessData ** Not sure if this will be used lol..
+// ConvertYelpResponseToMappedYelpResponse converts the YelpResponse struc to the mapped data structure, with the key as the ID and value as the BusinessData
 func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *MappedYelpResponse {
 	mappedPtr := &MappedYelpResponse{make(map[string]*BusinessData)}
 
