@@ -11,7 +11,8 @@ class App extends Component {
       location: "",
       sid: null,
       bizdata: {},
-      wsconn: null
+      wsconn: null,
+      messages: []
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -76,7 +77,7 @@ class App extends Component {
   }
 
   async joinSession() {
-    if (this.state.sid === null) {
+    if (this.state.sid === "") {
       throw "can't join session. no session id available";
     }
 
@@ -91,35 +92,37 @@ class App extends Component {
       return data;
     } catch (err) {
       console.log(err);
+      return false;
     }
   }
 
   async initializeWebsocket() {
-    let conn;
-
     const wsURL = `ws://${document.location.hostname}:8080/ws`;
-
     if (window["WebSocket"]) {
-      conn = new WebSocket(wsURL);
-
+      let conn = new WebSocket(wsURL);
       this.setState({
         wsconn: conn
       });
 
-      console.log("Initializing Websocket Handshake");
-      console.log(wsURL);
       conn.onclose = evt => {
-        // need to find a way to append text to the caht room
+        this.setState({
+          messages: [...this.state.messages, "Connection Ended"]
+        });
         console.log(evt);
       };
+
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
         console.log(msg);
-        if (msg.bizdata.length !== 0) {
+        if (msg.bizdata.id !== "") {
           this.setState(state => {
             return { bizdata: state.bizdata.push(msg.bizdata) };
           });
-        } else if (msg.Message !== 0) {
+        } else {
+          // append message to the board
+          this.setState({
+            messages: [...this.state.messages, `${msg.username}: ${msg.msg}`]
+          });
         }
       };
     }
@@ -128,23 +131,44 @@ class App extends Component {
   handleCreateSessionButtonClick() {
     this.createSession()
       .then(() => this.joinSession())
-      .then(() => this.initializeWebsocket())
+      .then(proceed => {
+        proceed ? this.initializeWebsocket() : false;
+      })
       .catch(err => console.log(err));
   }
 
   handleJoinSessionButtonClick() {
     this.joinSession()
-      .then(() => this.initializeWebsocket())
+      .then(proceed => {
+        proceed ? this.initializeWebsocket() : false;
+      })
       .catch(err => console.log(err));
   }
 
   render() {
+    /* 
+  
+  Conditional Rendering
+  
+  */
+
+    const crChatService = (() => {
+      if (this.state.wsconn) {
+        return (
+          <ChatService
+            wsconn={this.state.wsconn}
+            username={this.state.username}
+            messages={this.state.messages}
+          />
+        );
+      }
+    })();
+
     return (
       <div className="App">
         <header className="App-header">
           <h1 className="App-title">Where Should We Eat</h1>
         </header>
-        <p>Hello</p>
         <Landing
           username={this.username}
           sid={this.sid}
@@ -155,10 +179,7 @@ class App extends Component {
           handleCreateSessionClick={this.handleCreateSessionButtonClick}
           handleJoinSessionClick={this.handleJoinSessionButtonClick}
         />
-        <ChatService
-          wsconn={this.state.wsconn}
-          username={this.state.username}
-        />
+        {crChatService}
       </div>
     );
   }
