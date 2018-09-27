@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import ChatBox from "./ChatBox";
 
 export default class ChatService extends Component {
   constructor(props) {
@@ -34,17 +35,24 @@ export default class ChatService extends Component {
   render() {
     return (
       <div id="chat">
-        <div className="chat-box" />
-        <form id="chat-form">
-          <input
-            type="text"
-            id="msg"
-            size="64"
-            value={this.state.msg}
-            onChange={this.handleMessageTextChange}
-          />
-          <input type="click" value="Send" onClick={this.handleChatSendClick} />
-        </form>
+        <div className="chat-box">
+          <ChatBox messages={this.props.messages} />
+        </div>
+        <input
+          type="text"
+          id="msg"
+          size="64"
+          value={this.state.msg}
+          onChange={this.handleMessageTextChange}
+          onKeyDown={e => {
+            if (e.keyCode == 13) {
+              this.handleChatSendClick();
+            }
+          }}
+        />
+        <button type="button" onClick={this.handleChatSendClick}>
+          Send
+        </button>
       </div>
     );
   }
