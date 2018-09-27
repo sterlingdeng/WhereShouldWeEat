@@ -260,6 +260,7 @@ func handleLanding(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Initialize Router
 	r := mux.NewRouter()
+	fmt.Printf("Initializing server on port %s", port)
 
 	// Router Handlers / Endpoints
 	r.HandleFunc("/CreateSession", createSession).Methods("POST")

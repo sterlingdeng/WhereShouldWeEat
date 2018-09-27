@@ -11,26 +11,8 @@ import (
 type Msg struct {
 	Username string       `json:"username"`
 	Message  string       `json:"msg"`
-	Business BusinessData `json:bizdata`
+	Business BusinessData `json:"bizdata"`
 }
-
-// Hub struct maintain active clients and broadcast message to clients
-// type Hub struct {
-// 	// Registered Clients
-// 	clients map[*User]bool
-
-// 	// Inbound messages from the clients
-// 	broadcast chan Msg
-
-// 	// Register request from clients
-// 	register chan *User
-
-// 	// Unregister request from  clients
-// 	unregister chan *User
-
-// 	// Read message from client and adds info to db
-// 	read chan Msg
-// }
 
 // NewHub initializes a new Hub for the chat server. There is 1 Hub per 1 Session
 
@@ -52,11 +34,15 @@ func (s *Session) run() {
 			}
 
 		case message := <-s.broadcast:
+			fmt.Print("\n line is executing \n")
 			for client := range s.clients {
+				fmt.Print(client)
 				select {
 				case client.send <- message:
+					fmt.Print("\nsending message\n")
 					// if cannot send, either connection is severed, thus, remove client from list
 				default:
+					fmt.Print("closing ws connection\n")
 					close(client.send)
 					delete(s.clients, client)
 				}
@@ -73,7 +59,19 @@ func (s *Session) run() {
 				idMessage := message.Username + ": " + message.Message
 				s.Messages = append(s.Messages, idMessage)
 			}
-			s.broadcast <- message
+			fmt.Print("\n line is executing \n")
+			for client := range s.clients {
+				fmt.Print(client)
+				select {
+				case client.send <- message:
+					fmt.Print("\nsending message\n")
+					// if cannot send, either connection is severed, thus, remove client from list
+				default:
+					fmt.Print("closing ws connection\n")
+					close(client.send)
+					delete(s.clients, client)
+				}
+			}
 		}
 	}
 }

@@ -62,12 +62,10 @@ func (c *User) readPump() {
 			}
 			break
 		}
-		fmt.Print("incoming message")
-		// _, message, err := c.conn.ReadMessage()
+		fmt.Print("incoming message\n")
 
-		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.session.read <- msg
-		c.session.broadcast <- msg
+
 	}
 }
 
@@ -88,26 +86,14 @@ func (c *User) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
+				fmt.Print("closing channel\n")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			// w, err := c.conn.NextWriter(websocket.TextMessage)
-			// if err != nil {
-			// 	return
-			// }
+			fmt.Print("sending JSON message")
 			c.conn.WriteJSON(&message)
 
-			// Add queued chat messages to the current websocket message.
-			// n := len(c.send)
-			// for i := 0; i < n; i++ {
-			// 	w.Write(newline)
-			// 	w.Write(<-c.send)
-			// }
-
-			// if err := w.Close(); err != nil {
-			// 	return
-			// }
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
