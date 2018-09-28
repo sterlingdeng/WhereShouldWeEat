@@ -45,7 +45,7 @@ export default class ChatService extends Component {
           value={this.state.msg}
           onChange={this.handleMessageTextChange}
           onKeyDown={e => {
-            if (e.keyCode == 13) {
+            if (e.keyCode === 13) {
               this.handleChatSendClick();
             }
           }}

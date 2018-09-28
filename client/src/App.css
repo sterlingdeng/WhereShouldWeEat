@@ -1,34 +1,10 @@
+html,
+body {
+  height: 100%;
+}
+
 .App {
   text-align: center;
-}
-
-.App-logo {
-  animation: App-logo-spin infinite 20s linear;
-  height: 80px;
-}
-
-.App-header {
-  background-color: #222;
-  height: 150px;
-  padding: 20px;
-  color: white;
-}
-
-.App-title {
-  font-size: 1.5em;
-}
-
-.App-intro {
-  font-size: large;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .chat-box {
@@ -40,4 +16,36 @@
   height: 100px;
 
   overflow: auto;
+}
+
+.bg {
+  background-image: url(./img/better-pic.jpeg);
+  height: 100vh;
+  width: auto;
+
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.container {
+  text-align: center;
+}
+
+.btn {
+  margin: 20px;
+}
+
+.map-container {
+  height: 1000px;
+  width: auto;
+}
+
+.full-size-container {
+  height: 100vh;
+  width: auto;
+}
+
+#map {
+  height: 100%;
 }

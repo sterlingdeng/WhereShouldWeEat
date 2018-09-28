@@ -2,13 +2,22 @@ import React, { Component } from "react";
 import "./App.css";
 import Landing from "./components/Landing";
 import ChatService from "./components/ChatService";
+import GoogleMaps from "./components/GoogleMaps";
+import GetLocation from "./components/GetLocation";
+
+const render = {
+  GET_LOCATION: 1
+};
+
+const USA_LAT_LNG = { lat: 37.0902, lng: -95.7129 };
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
+      render: render.GET_LOCATION,
       username: "",
-      location: "",
+      location: undefined,
       sid: null,
       bizdata: {},
       wsconn: null,
@@ -26,6 +35,7 @@ class App extends Component {
     this.handleJoinSessionButtonClick = this.handleJoinSessionButtonClick.bind(
       this
     );
+    this.getLocationLatLng = this.getLocationLatLng.bind(this);
   }
 
   usernameTextChange(e) {
@@ -78,7 +88,7 @@ class App extends Component {
 
   async joinSession() {
     if (this.state.sid === "") {
-      throw "can't join session. no session id available";
+      console.log("can't join session. no session id available");
     }
 
     const uri = `/JoinSession?id=${this.state.sid}&username=${
@@ -145,12 +155,50 @@ class App extends Component {
       .catch(err => console.log(err));
   }
 
+  // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
+  getLocationLatLng() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const coord = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+          this.setState({
+            location: coord
+          });
+        },
+        () => {
+          this.setState({
+            location: USA_LAT_LNG
+          });
+        }
+      );
+    } else {
+      this.setState({
+        location: USA_LAT_LNG
+      });
+    }
+  }
+
   render() {
     /* 
   
   Conditional Rendering
   
   */
+
+    const crGetLocation = (() => {
+      if (this.state.render == render.GET_LOCATION) {
+        return (
+          <GetLocation
+            getLocation={this.getLocationLatLng}
+            location={this.state.location}
+            defaultMap={USA_LAT_LNG}
+          />
+        );
+      }
+    })();
 
     const crChatService = (() => {
       if (this.state.wsconn) {
@@ -166,9 +214,12 @@ class App extends Component {
 
     return (
       <div className="App">
-        <header className="App-header">
-          <h1 className="App-title">Where Should We Eat</h1>
-        </header>
+        {crGetLocation}
+        <GoogleMaps
+          location={this.state.location}
+          getLocation={this.getLocation}
+          defaultMap={USA_LAT_LNG}
+        />
         <Landing
           username={this.username}
           sid={this.sid}
@@ -179,6 +230,7 @@ class App extends Component {
           handleCreateSessionClick={this.handleCreateSessionButtonClick}
           handleJoinSessionClick={this.handleJoinSessionButtonClick}
         />
+
         {crChatService}
       </div>
     );
