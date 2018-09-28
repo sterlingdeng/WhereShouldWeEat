@@ -90,6 +90,7 @@ func (s *Session) addBusiness(b *BusinessData) {
 // SessionManager manages all active sessions and provides methods to handle sessions
 type SessionManager struct {
 	ActiveSessions map[int]*Session
+	MaxSessions    int
 }
 
 func (s *SessionManager) size() int {
@@ -162,6 +163,7 @@ var manager = new(SessionManager)
 
 func init() {
 	manager.ActiveSessions = make(map[int]*Session)
+	manager.MaxSessions = 1
 }
 
 /*
