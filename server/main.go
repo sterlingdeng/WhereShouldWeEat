@@ -28,7 +28,7 @@ type Session struct {
 	MaxPartySize  int                      `json:"MaxPartySize"`
 	CurrPartySize int                      `json:"CurrPartySize"`
 	Users         map[string]*User         `json:"users"`
-	Location      string                   `json:"location"`
+	Location      LatLng                   `json:"location"`
 	BusinessList  map[string]*BusinessData `json:"bizList"`
 	Messages      []string                 `json:"messages"`
 
@@ -119,7 +119,7 @@ func (s *SessionManager) add(session *Session) bool {
 	return true
 }
 
-func (s *SessionManager) initSession(location string) Session {
+func (s *SessionManager) initSession(latlng LatLng) Session {
 	//create a new session... add session to the session manager
 
 	session := Session{
@@ -127,7 +127,7 @@ func (s *SessionManager) initSession(location string) Session {
 		MaxPartySize:  maxPartySize,
 		CurrPartySize: 0,
 		Users:         make(map[string]*User),
-		Location:      location,
+		Location:      latlng,
 		BusinessList:  make(map[string]*BusinessData),
 		Messages:      make([]string, 100),
 		clients:       make(map[*User]bool),
@@ -169,18 +169,23 @@ func init() {
 /*
 func createSession
 type: "POST"
-json: {
+body/json: {
 	"username": string
-	"location": string
+	"LatLng": {"latlng" : {"lat" : float64, "lng" : float64}}
 }
+desc: client to send username and latlng information to the server.
+latlng will be used as inital locaion to fetch yelp data.
+The conversion from a city string to a latlng can be done using another end point. (To provide later)
 */
+
 func createSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// req struct provides a target to unpack the JSON data to
 	var req struct {
 		Username string `json:"username"`
-		Location string `json:"location"`
+		Latlng   LatLng `json:"latlng"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -189,12 +194,12 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	session := manager.initSession(req.Location)
+	session := manager.initSession(req.Latlng)
 
 	user := User{Username: req.Username}
 
 	manager.ActiveSessions[session.ID].addUser(user)
-	manager.ActiveSessions[session.ID].Location = req.Location
+	manager.ActiveSessions[session.ID].Location = req.Latlng
 	json.NewEncoder(w).Encode(manager.ActiveSessions[session.ID])
 
 	// sid := manager.ActiveSessions[session.ID].ID
@@ -271,6 +276,9 @@ func main() {
 	// Yelp API handlers
 	r.HandleFunc("/yelpdata", handleClientYelpReq).Methods("GET")
 	r.HandleFunc("/", handleLanding).Methods("GET")
+
+	// Search Location Handlers
+	r.HandleFunc("/search", searchLocation).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(port, r))
 
