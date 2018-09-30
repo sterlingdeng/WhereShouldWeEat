@@ -24,15 +24,7 @@ class Landing extends Component {
                 this.props.handleUsernameChange(e);
               }}
             />
-            <input
-              type="text"
-              placeholder="Location"
-              id="location"
-              value={this.props.location}
-              onChange={e => {
-                this.props.handleLocationChange(e);
-              }}
-            />
+
             <input
               type="text"
               placeholder="SessionID"

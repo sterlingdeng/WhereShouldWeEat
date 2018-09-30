@@ -64,9 +64,15 @@ class App extends Component {
   async createSession() {
     const requestBody = {
       username: this.state.username,
-      location: this.state.location
+      latlng: {
+        lat: this.state.location.lat,
+        lng: this.state.location.lng
+      } // location needs to be a string
     };
+
     let body = JSON.stringify(requestBody);
+
+    console.log(body);
 
     if (!body) return;
 
@@ -189,7 +195,7 @@ class App extends Component {
   */
 
     const crGetLocation = (() => {
-      if (this.state.render == render.GET_LOCATION) {
+      if (this.state.render === render.GET_LOCATION) {
         return (
           <GetLocation
             getLocation={this.getLocationLatLng}
@@ -225,7 +231,6 @@ class App extends Component {
           sid={this.sid}
           location={this.location}
           handleUsernameChange={this.usernameTextChange}
-          handleLocationChange={this.locationTextChange}
           handleSidChange={this.sidValueChange}
           handleCreateSessionClick={this.handleCreateSessionButtonClick}
           handleJoinSessionClick={this.handleJoinSessionButtonClick}
