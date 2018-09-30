@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -14,12 +15,19 @@ const yelpEndpoint string = "https://api.yelp.com/v3/businesses/search"
 // InitGeographicData struct contains the location and lat & lng data that is sent from the client when a new session is created
 type InitGeographicData struct {
 	location string `json:"location"` // provide location such as NYC, or San Francisco, CA
-	LatLng
+	LatLng   LatLng
 }
 
 func (i *InitGeographicData) assembleURI() string {
-	if &i.LatLng.Lat == nil || &i.LatLng.Lng == nil {
-		return yelpEndpoint + "?latitude=" + fmt.Sprintf("%f", i.LatLng.Lat) + "&longitude=" + fmt.Sprintf("%f", i.LatLng.Lng)
+	if &i.LatLng.Lat != nil && &i.LatLng.Lng != nil {
+
+		lat := strconv.FormatFloat(i.LatLng.Lat, 'f', -1, 64)
+		lng := strconv.FormatFloat(i.LatLng.Lng, 'f', -1, 64)
+
+		fmt.Sprintf("Lat: %s\n", lat)
+		fmt.Sprintf("Lng: %s\n", lng)
+
+		return yelpEndpoint + "?latitude=" + lat + "&longitude=" + lng + "&categories=Restaurant"
 	}
 	return yelpEndpoint + "?location=" + i.location
 }
@@ -39,7 +47,7 @@ type BusinessData struct {
 	ID           string  `json:"id"`
 	Name         string  `json:"name"`
 	Rating       int     `json:"int"`
-	ReviewCount  int     `json:"review_count`
+	ReviewCount  int     `json:"review_count"`
 	Price        string  `json:"price"`
 	DisplayPhone string  `json:"display_phone"`
 	Distance     float64 `json:"distance"`
@@ -47,21 +55,22 @@ type BusinessData struct {
 		Lat float64 `json:"latitude"`
 		Lng float64 `json:"longitude"`
 	} `json:"coordinates"`
-	IsClosed string `json:"is_closed"`
+	IsClosed bool   `json:"is_closed"`
 	ImageURL string `json:"image_url"`
 }
 
 // MappedYelpResponse struct provides a map, relating the key, which is the business ID, to the value, which is the BusinessData. ** Not sure if this will be used lol..
 type MappedYelpResponse struct {
-	MappedBusinessStruct map[string]*BusinessData
+	MappedBusinessStruct map[string]BusinessData
 }
 
 // ConvertYelpResponseToMappedYelpResponse converts the YelpResponse struc to the mapped data structure, with the key as the ID and value as the BusinessData
 func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *MappedYelpResponse {
-	mappedPtr := &MappedYelpResponse{make(map[string]*BusinessData)}
+	mappedPtr := &MappedYelpResponse{make(map[string]BusinessData)}
 
-	for _, key := range y.Businesses {
-		mappedPtr.MappedBusinessStruct[key.ID] = &key
+	for index, key := range y.Businesses {
+		mappedPtr.MappedBusinessStruct[key.Name] = key
+		fmt.Print(index)
 	}
 
 	return mappedPtr
@@ -70,7 +79,7 @@ func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *MappedYelpResp
 // FetchYelpInfoFromYelpEndpoint function performs the GET call to the yelp API
 func FetchYelpInfoFromYelpEndpoint(loc *InitGeographicData) *YelpResponse {
 	addr := loc.assembleURI()
-	fmt.Printf(addr)
+	fmt.Printf("%s\n", addr)
 
 	client := http.Client{
 		Timeout: time.Second * 2,
@@ -96,7 +105,7 @@ func FetchYelpInfoFromYelpEndpoint(loc *InitGeographicData) *YelpResponse {
 	YelpRes := YelpResponse{}
 
 	jsonErr := json.Unmarshal(body, &YelpRes)
-	fmt.Print(YelpRes)
+	// fmt.Print(YelpRes)
 
 	if jsonErr != nil {
 		log.Fatal(jsonErr)

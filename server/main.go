@@ -31,20 +31,12 @@ type Session struct {
 	Location      LatLng                   `json:"location"`
 	BusinessList  map[string]*BusinessData `json:"bizList"`
 	Messages      []string                 `json:"messages"`
-
-	clients map[*User]bool
-
-	// Inbound messages from the clients
-	broadcast chan Msg
-
-	// Register request from clients
-	register chan *User
-
-	// Unregister request from  clients
-	unregister chan *User
-
-	// Read message from client and adds info to db
-	read chan Msg
+	YelpBizList   *MappedYelpResponse
+	clients       map[*User]bool
+	broadcast     chan Msg   // Inbound messages from the clients
+	register      chan *User // Register request from clients
+	unregister    chan *User // Unregister request from  clients
+	read          chan Msg   // Read message from client and adds info to db
 }
 
 func (s *Session) hasUser(uid string) bool {
@@ -84,13 +76,20 @@ func (s *Session) addBusiness(b *BusinessData) {
 		s.BusinessList[b.ID] = b
 		// send information to users that the business list got updated
 	}
-
 }
 
 // SessionManager manages all active sessions and provides methods to handle sessions
 type SessionManager struct {
 	ActiveSessions map[int]*Session
 	MaxSessions    int
+}
+
+// User struct to handle individual users within Sessions
+type User struct {
+	Username string `json:"username"`
+	session  *Session
+	conn     *websocket.Conn // Websocket Connection
+	send     chan Msg        // Buffered channel of outbound messages
 }
 
 func (s *SessionManager) size() int {
@@ -128,13 +127,14 @@ func (s *SessionManager) initSession(latlng LatLng) Session {
 		CurrPartySize: 0,
 		Users:         make(map[string]*User),
 		Location:      latlng,
-		BusinessList:  make(map[string]*BusinessData),
+		BusinessList:  make(map[string]*BusinessData), // used to vote
 		Messages:      make([]string, 100),
 		clients:       make(map[*User]bool),
 		broadcast:     make(chan Msg),
 		register:      make(chan *User),
 		unregister:    make(chan *User),
 		read:          make(chan Msg),
+		YelpBizList:   nil,
 	}
 
 	s.add(&session)
@@ -146,41 +146,20 @@ func (s *SessionManager) initSession(latlng LatLng) Session {
 	return session
 }
 
-// User struct to handle individual users within Sessions
-type User struct {
-	Username string `json:"username"`
-	session  *Session
-	conn     *websocket.Conn // Websocket Connection
-	send     chan Msg        // Buffered channel of outbound messages
-}
-
-// Init books var as a slice Book struct
-/*
-Remember that in order to initialize a map, it needs to be done with var something = make(map..) because if it is initialized like var activeSession = map[int]Session initializes a nil map
-*/
-
-var manager = new(SessionManager)
-
-func init() {
-	manager.ActiveSessions = make(map[int]*Session)
-	manager.MaxSessions = 1
-}
-
 /*
 func createSession
 type: "POST"
-body/json: {
+recieving body/json: {
 	"username": string
 	"LatLng": {"latlng" : {"lat" : float64, "lng" : float64}}
 }
 desc: client to send username and latlng information to the server.
-latlng will be used as inital locaion to fetch yelp data.
+latlng will be used as inital location to fetch yelp data.
 The conversion from a city string to a latlng can be done using another end point. (To provide later)
 */
 
 func createSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// req struct provides a target to unpack the JSON data to
 	var req struct {
@@ -200,12 +179,20 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	manager.ActiveSessions[session.ID].addUser(user)
 	manager.ActiveSessions[session.ID].Location = req.Latlng
-	json.NewEncoder(w).Encode(manager.ActiveSessions[session.ID])
 
-	// sid := manager.ActiveSessions[session.ID].ID
-	// redirectWsURL := wsURL + "/JoinSession?id=" + strconv.Itoa(sid) + "&username=" + req.Username
-	// fmt.Println("redirected to %s", redirectWsURL)
-	// http.Redirect(w, r, redirectWsURL, 301)
+	// update yelp business address
+
+	sessionLocationData := &InitGeographicData{location: "", LatLng: req.Latlng}
+
+	yelpResPtr := FetchYelpInfoFromYelpEndpoint(sessionLocationData).ConvertYelpResponseToMappedYelpResponse()
+
+	fmt.Printf("\n")
+	// fmt.Print(yelpResPtr)
+	fmt.Printf("\n")
+
+	manager.ActiveSessions[session.ID].YelpBizList = yelpResPtr
+
+	json.NewEncoder(w).Encode(manager.ActiveSessions[session.ID])
 
 }
 
@@ -262,6 +249,18 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 
 func handleLanding(w http.ResponseWriter, r *http.Request) {
 
+}
+
+// Init books var as a slice Book struct
+/*
+Remember that in order to initialize a map, it needs to be done with var something = make(map..) because if it is initialized like var activeSession = map[int]Session initializes a nil map
+*/
+
+var manager = new(SessionManager)
+
+func init() {
+	manager.ActiveSessions = make(map[int]*Session)
+	manager.MaxSessions = 1
 }
 
 func main() {
