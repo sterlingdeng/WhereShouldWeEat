@@ -7,7 +7,7 @@ import React, { Component } from "react";
 class Landing extends Component {
   render() {
     return (
-      <div className="bg">
+      <div className="bg container-fluid">
         <div className="justify-content-center d-flex mask rgba-black-light align-items-center">
           <div className="container">
             <div className="row">
@@ -24,7 +24,6 @@ class Landing extends Component {
                 this.props.handleUsernameChange(e);
               }}
             />
-
             <input
               type="text"
               placeholder="SessionID"

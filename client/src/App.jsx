@@ -5,17 +5,17 @@ import ChatService from "./components/ChatService";
 import GoogleMaps from "./components/GoogleMaps";
 import GetLocation from "./components/GetLocation";
 
-const render = {
-  GET_LOCATION: 1
+const renderEnum = {
+  GET_LOCATION: 1, // if location is undefined
+  SESSION_LANDING: 2, // once a location (latlng) is found or inputted
+  LOGGED_IN: 3 // logged in
 };
-
-const USA_LAT_LNG = { lat: 37.0902, lng: -95.7129 };
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      render: render.GET_LOCATION,
+      render: renderEnum.GET_LOCATION,
       username: "",
       location: undefined,
       sid: null,
@@ -35,7 +35,8 @@ class App extends Component {
     this.handleJoinSessionButtonClick = this.handleJoinSessionButtonClick.bind(
       this
     );
-    this.getLocationLatLng = this.getLocationLatLng.bind(this);
+    this._handleRenderState = this._handleRenderState.bind(this);
+    this._updateAppState = this._updateAppState.bind(this);
   }
 
   usernameTextChange(e) {
@@ -70,13 +71,11 @@ class App extends Component {
       } // location needs to be a string
     };
 
-    let body = JSON.stringify(requestBody);
-
-    console.log(body);
+    const body = JSON.stringify(requestBody);
 
     if (!body) return;
 
-    let response = await fetch("/CreateSession", {
+    const response = await fetch("/CreateSession", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8"
@@ -84,11 +83,12 @@ class App extends Component {
       body: body
     });
 
-    let data = await response.json();
+    const data = await response.json();
     this.setState({
       sid: data.id,
       bizdata: data.bizList
     });
+
     return data;
   }
 
@@ -146,6 +146,7 @@ class App extends Component {
 
   handleCreateSessionButtonClick() {
     this.createSession()
+      // If server can successfully create session, response will be Session ID
       .then(() => this.joinSession())
       .then(proceed => {
         proceed ? this.initializeWebsocket() : false;
@@ -162,45 +163,54 @@ class App extends Component {
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
-  getLocationLatLng() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const coord = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          };
-          this.setState({
-            location: coord
-          });
-        },
-        () => {
-          this.setState({
-            location: USA_LAT_LNG
-          });
-        }
-      );
-    } else {
-      this.setState({
-        location: USA_LAT_LNG
-      });
-    }
+
+  _updateAppState(newState) {
+    this.setState(newState);
+  }
+
+  _handleRenderState(newState) {
+    this.setState({
+      render: newState
+    });
   }
 
   render() {
-    /* 
-  
-  Conditional Rendering
-  
-  */
-
+    // Conditional Rendering
     const crGetLocation = (() => {
-      if (this.state.render === render.GET_LOCATION) {
+      if (this.state.render === renderEnum.GET_LOCATION) {
         return (
           <GetLocation
-            getLocation={this.getLocationLatLng}
             location={this.state.location}
-            defaultMap={USA_LAT_LNG}
+            _handleRenderState={this._handleRenderState}
+            _updateAppState={this._updateAppState}
+            renderEnum={renderEnum}
+          />
+        );
+      }
+    })();
+
+    const crLanding = (() => {
+      if (this.state.render === renderEnum.SESSION_LANDING) {
+        return (
+          <Landing
+            username={this.username}
+            sid={this.sid}
+            location={this.location}
+            handleUsernameChange={this.usernameTextChange}
+            handleSidChange={this.sidValueChange}
+            handleCreateSessionClick={this.handleCreateSessionButtonClick}
+            handleJoinSessionClick={this.handleJoinSessionButtonClick}
+          />
+        );
+      }
+    })();
+
+    const crGoogleMaps = (() => {
+      if (this.state.render === renderEnum.LOGGED_IN) {
+        return (
+          <GoogleMaps
+            location={this.state.location}
+            getLocation={this.getLocation}
           />
         );
       }
@@ -221,20 +231,10 @@ class App extends Component {
     return (
       <div className="App">
         {crGetLocation}
-        <GoogleMaps
-          location={this.state.location}
-          getLocation={this.getLocation}
-          defaultMap={USA_LAT_LNG}
-        />
-        <Landing
-          username={this.username}
-          sid={this.sid}
-          location={this.location}
-          handleUsernameChange={this.usernameTextChange}
-          handleSidChange={this.sidValueChange}
-          handleCreateSessionClick={this.handleCreateSessionButtonClick}
-          handleJoinSessionClick={this.handleJoinSessionButtonClick}
-        />
+
+        {crLanding}
+
+        {crGoogleMaps}
 
         {crChatService}
       </div>
