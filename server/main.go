@@ -192,7 +192,9 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	manager.ActiveSessions[session.ID].YelpBizList = yelpResPtr
 
-	json.NewEncoder(w).Encode(manager.ActiveSessions[session.ID])
+	obj, _ := manager.ActiveSessions[session.ID]
+
+	json.NewEncoder(w).Encode(obj)
 
 }
 
@@ -214,7 +216,7 @@ func joinSession(w http.ResponseWriter, r *http.Request) {
 
 		newUser := User{Username: newUsername}
 		sessionPtr.addUser(newUser)
-		json.NewEncoder(w).Encode(manager.ActiveSessions)
+		json.NewEncoder(w).Encode(manager.ActiveSessions[seshID])
 		// once session is found, need to connect user to the session, maybe this is where we initiate a websocket connection?
 
 	} else {
@@ -247,10 +249,6 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func handleLanding(w http.ResponseWriter, r *http.Request) {
-
-}
-
 // Init books var as a slice Book struct
 /*
 Remember that in order to initialize a map, it needs to be done with var something = make(map..) because if it is initialized like var activeSession = map[int]Session initializes a nil map
@@ -274,7 +272,6 @@ func main() {
 
 	// Yelp API handlers
 	r.HandleFunc("/yelpdata", handleClientYelpReq).Methods("GET")
-	r.HandleFunc("/", handleLanding).Methods("GET")
 
 	// Search Location Handlers
 	r.HandleFunc("/search", searchLocation).Methods("GET")

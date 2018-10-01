@@ -10,7 +10,11 @@ import (
 	"time"
 )
 
-const yelpEndpoint string = "https://api.yelp.com/v3/businesses/search"
+// LatLng struct contains the latitude and longitude data as float64
+type LatLng struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
+}
 
 // InitGeographicData struct contains the location and lat & lng data that is sent from the client when a new session is created
 type InitGeographicData struct {
@@ -19,23 +23,15 @@ type InitGeographicData struct {
 }
 
 func (i *InitGeographicData) assembleURI() string {
-	if &i.LatLng.Lat != nil && &i.LatLng.Lng != nil {
 
+	const yelpEndpoint string = "https://api.yelp.com/v3/businesses/search"
+
+	if &i.LatLng.Lat != nil && &i.LatLng.Lng != nil {
 		lat := strconv.FormatFloat(i.LatLng.Lat, 'f', -1, 64)
 		lng := strconv.FormatFloat(i.LatLng.Lng, 'f', -1, 64)
-
-		fmt.Sprintf("Lat: %s\n", lat)
-		fmt.Sprintf("Lng: %s\n", lng)
-
 		return yelpEndpoint + "?latitude=" + lat + "&longitude=" + lng + "&categories=Restaurant"
 	}
 	return yelpEndpoint + "?location=" + i.location
-}
-
-// LatLng struct contains the latitude and longitude data as float64
-type LatLng struct {
-	Lat float64 `json:"lat"`
-	Lng float64 `json:"lng"`
 }
 
 // YelpResponse provides a struct to unmarshal the JSON from the yelp API

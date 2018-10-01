@@ -28,16 +28,12 @@ body {
   background-size: cover;
 }
 
-.container {
-  text-align: center;
-}
-
 .btn {
   margin: 20px;
 }
 
 .map-container {
-  height: 1000px;
+  height: 80vh;
   width: auto;
 }
 
@@ -48,4 +44,9 @@ body {
 
 #map {
   height: 100%;
+}
+
+.sidebar {
+  background-color: gray;
+  height: 100vh;
 }
