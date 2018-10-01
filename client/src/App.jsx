@@ -1,9 +1,8 @@
 import React, { Component } from "react";
 import "./App.css";
 import Landing from "./components/Landing";
-import ChatService from "./components/ChatService";
-import GoogleMaps from "./components/GoogleMaps";
 import GetLocation from "./components/GetLocation";
+import AppContainer from "./components/AppContainer";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
@@ -19,7 +18,7 @@ class App extends Component {
       username: "",
       location: undefined,
       sid: null,
-      bizdata: {},
+      bizdata: undefined,
       wsconn: null,
       messages: []
     };
@@ -86,7 +85,7 @@ class App extends Component {
     const data = await response.json();
     this.setState({
       sid: data.id,
-      bizdata: data.bizList
+      bizdata: data
     });
 
     return data;
@@ -94,7 +93,7 @@ class App extends Component {
 
   async joinSession() {
     if (this.state.sid === "") {
-      console.log("can't join session. no session id available");
+      console.log("Can't join session. No session id available");
     }
 
     const uri = `/JoinSession?id=${this.state.sid}&username=${
@@ -102,14 +101,19 @@ class App extends Component {
     }`;
     let response = await fetch(uri);
 
-    try {
-      let data = await response.json();
-      console.log(data);
-      return data;
-    } catch (err) {
-      console.log(err);
-      return false;
+    let data = await response.json();
+    console.log(data.YelpBizList);
+    if (data.id) {
+      this.setState(
+        {
+          bizdata: data.YelpBizList,
+          render: renderEnum.LOGGED_IN
+        },
+        console.log(this.state.bizdata)
+      );
     }
+
+    return data;
   }
 
   async initializeWebsocket() {
@@ -163,7 +167,6 @@ class App extends Component {
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
-
   _updateAppState(newState) {
     this.setState(newState);
   }
@@ -205,24 +208,18 @@ class App extends Component {
       }
     })();
 
-    const crGoogleMaps = (() => {
+    const crAppContainer = (() => {
       if (this.state.render === renderEnum.LOGGED_IN) {
         return (
-          <GoogleMaps
+          <AppContainer
+            // for google maps
             location={this.state.location}
             getLocation={this.getLocation}
-          />
-        );
-      }
-    })();
-
-    const crChatService = (() => {
-      if (this.state.wsconn) {
-        return (
-          <ChatService
+            // for chat service
             wsconn={this.state.wsconn}
             username={this.state.username}
             messages={this.state.messages}
+            yelpBusinessList={this.state.bizdata}
           />
         );
       }
@@ -234,9 +231,7 @@ class App extends Component {
 
         {crLanding}
 
-        {crGoogleMaps}
-
-        {crChatService}
+        {crAppContainer}
       </div>
     );
   }
