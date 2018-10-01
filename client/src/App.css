@@ -50,3 +50,7 @@ body {
   background-color: gray;
   height: 100vh;
 }
+
+.list-display {
+  background-color: grey;
+}

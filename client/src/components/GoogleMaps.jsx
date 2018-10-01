@@ -6,7 +6,8 @@ export default class GoogleMaps extends Component {
     super(props);
     this.state = {
       map: undefined,
-      apiLoaded: false
+      apiLoaded: false,
+      currentInfoWindow: undefined
     };
     this.initMap = this.initMap.bind(this);
     this._renderMarkers = this._renderMarkers.bind(this);
@@ -32,7 +33,7 @@ export default class GoogleMaps extends Component {
     const google = window.google;
 
     let map = new google.maps.Map(document.getElementById("map"), {
-      zoom: 15,
+      zoom: 12,
       gestureHandling: "greedy"
     });
 
@@ -51,26 +52,66 @@ export default class GoogleMaps extends Component {
   }
 
   _updateMarkers() {
+    if (this.props.yelpBusinessList === undefined) {
+      return;
+    }
+
     for (let business in this.props.yelpBusinessList.MappedBusinessStruct) {
-      const value = this.props.yelpBusinessList.MappedBusinessStruct[business];
-      this._renderMarkers(value.coordinates);
+      const businessData = this.props.yelpBusinessList.MappedBusinessStruct[
+        business
+      ];
+      this._renderMarkers(businessData);
     }
   }
 
   //latlng = {lat: lat, lng: lng}
-  _renderMarkers(latlng) {
-    // if the api hasn't loaded, do not attempt to apply markers to map.
+  _renderMarkers(business) {
+    // If the api hasn't loaded, do not attempt to apply markers to map.
     if (!this.state.apiLoaded) {
       return false;
     }
+    // First, render the marker on the map
     const google = window.google;
-    console.log(latlng);
-
     const marker = new google.maps.Marker({
-      position: { lat: latlng.latitude, lng: latlng.longitude },
+      position: {
+        lat: business.coordinates.latitude,
+        lng: business.coordinates.longitude
+      },
       title: "hello"
     });
     marker.setMap(this.state.map);
+
+    // Next, render the content inside the marker. This should somewhat resemble
+    // how yelp renders information in their markers.
+    const contentString = `
+    <div id="content">
+      <div class="marker-business-name">${business.name}</div>
+      <div class="marker-stars">${business.rating}</div>
+      <div class="marker-dollar-signs">${business.price}</div>
+      <div class="marker-address">${business.location.display_address[0]}\n${
+      business.location.display_address[1]
+    }</div>
+      <img class="marker-image" src=${
+        business.image_url
+      } alt="restaurant picture"/>
+    </div>`;
+
+    const infoWindow = new google.maps.InfoWindow({
+      content: contentString
+    });
+
+    marker.addListener("click", () => {
+      // if there is another InfoWindow open, close it first before rendering the new one
+      if (this.state.currentInfoWindow) {
+        this.state.currentInfoWindow.close();
+      }
+      // Open the newly clicked infoWindow
+      infoWindow.open(this.state.map, marker);
+      // setState to keep track of which infoWindow is open
+      this.setState({
+        currentInfoWindow: infoWindow
+      });
+    });
   }
 
   render() {

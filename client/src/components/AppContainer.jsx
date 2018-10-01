@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import Sidebar from "./Sidebar";
 import GoogleMaps from "./GoogleMaps";
+import ListDisplay from "./ListDisplay";
 
 export default class AppContainer extends Component {
   constructor(props) {
@@ -17,6 +18,7 @@ export default class AppContainer extends Component {
             messages={this.props.messages}
             className="sidebar"
           />
+          <ListDisplay className="col-md-4 ml-sm-auto" />
           <div className="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4 map-container">
             <GoogleMaps
               location={this.props.location}
