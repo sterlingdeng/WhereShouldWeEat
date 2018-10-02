@@ -18,13 +18,15 @@ export default class AppContainer extends Component {
             messages={this.props.messages}
             className="sidebar"
           />
-          <ListDisplay className="col-md-4 ml-sm-auto" />
-          <div className="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4 map-container">
+          <ListDisplay />
+
+          <div className="col">
             <GoogleMaps
               location={this.props.location}
               getLocation={this.props.getLocation}
               yelpBusinessList={this.props.yelpBusinessList}
             />
+            <div>Chat here</div>
           </div>
         </div>
       </div>

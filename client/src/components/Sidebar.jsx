@@ -3,7 +3,7 @@ import ChatService from "./ChatService";
 
 const Sidebar = props => {
   return (
-    <nav className="col-md-2 d-none d-md-block bg-light sidebar">
+    <nav className="col-2 bg-light sidebar">
       <ChatService
         wsconn={props.wsconn}
         username={props.username}
