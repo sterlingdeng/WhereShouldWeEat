@@ -16,6 +16,18 @@ type LatLng struct {
 	Lng float64 `json:"lng"`
 }
 
+type Location struct {
+	Address        string    `json:"address1"`
+	Address2       string    `json:"address2"`
+	Address3       string    `json:"address3"`
+	City           string    `json:"city"`
+	State          string    `json:"state"`
+	ZipCode        string    `json:"zip_code"`
+	Country        string    `json:"country"`
+	DisplayAddress [2]string `json:"display_address"`
+	CrossStreets   string    `json:"cross_streets`
+}
+
 // InitGeographicData struct contains the location and lat & lng data that is sent from the client when a new session is created
 type InitGeographicData struct {
 	location string `json:"location"` // provide location such as NYC, or San Francisco, CA
@@ -40,13 +52,14 @@ type YelpResponse struct {
 }
 
 type BusinessData struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Rating       int     `json:"int"`
-	ReviewCount  int     `json:"review_count"`
-	Price        string  `json:"price"`
-	DisplayPhone string  `json:"display_phone"`
-	Distance     float64 `json:"distance"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Rating       float64  `json:"rating"`
+	ReviewCount  int      `json:"review_count"`
+	Price        string   `json:"price"`
+	DisplayPhone string   `json:"display_phone"`
+	Distance     float64  `json:"distance"`
+	Location     Location `json:"location"`
 	Coordinates  struct {
 		Lat float64 `json:"latitude"`
 		Lng float64 `json:"longitude"`
