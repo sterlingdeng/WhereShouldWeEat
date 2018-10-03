@@ -18,7 +18,7 @@ export default class AppContainer extends Component {
             messages={this.props.messages}
             className="sidebar"
           />
-          <ListDisplay />
+          <ListDisplay yelpBusinessList={this.props.yelpBusinessList} />
 
           <div className="col">
             <GoogleMaps

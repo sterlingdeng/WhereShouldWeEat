@@ -54,3 +54,14 @@ body {
 .list-display {
   background-color: grey;
 }
+.business-icon {
+  height: 210px;
+  width: 210px;
+  border-radius: 5px;
+}
+
+.list-item {
+  margin: 5px;
+  padding: 5px;
+  background-color: white;
+}

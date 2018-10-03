@@ -19,8 +19,7 @@ class Landing extends Component {
               type="text"
               placeholder="Username"
               id="username"
-              // value={this.props.username}
-              value={"sterling"}
+              value={this.props.username}
               onChange={e => {
                 this.props.handleUsernameChange(e);
               }}
@@ -29,8 +28,7 @@ class Landing extends Component {
               type="text"
               placeholder="SessionID"
               id="sid"
-              // value={this.props.sid}
-              value={7943}
+              value={this.props.sid}
               onChange={e => {
                 this.props.handleSidChange(e);
               }}

@@ -193,8 +193,9 @@ class App extends Component {
     })();
 
     const crLanding = (() => {
-      if (this.state.render === renderEnum.LOGGED_IN) {
-        // if (this.state.render === renderEnum.SESSION_LANDING) {
+      // if (this.state.render === renderEnum.LOGGED_IN) {        // this line for testing
+      if (this.state.render === renderEnum.SESSION_LANDING) {
+        // this line for production
         return (
           <Landing
             username={this.username}
@@ -210,8 +211,9 @@ class App extends Component {
     })();
 
     const crAppContainer = (() => {
-      if (this.state.render === renderEnum.SESSION_LANDING) {
-        // if (this.state.render === renderEnum.LOGGED_IN) {
+      // if (this.state.render === renderEnum.SESSION_LANDING) {    // this line for testing
+      if (this.state.render === renderEnum.LOGGED_IN) {
+        // this line for production
         return (
           <AppContainer
             // for google maps
