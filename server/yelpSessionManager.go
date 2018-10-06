@@ -42,6 +42,7 @@ func (i *InitGeographicData) assembleURI() string {
 		lat := strconv.FormatFloat(i.LatLng.Lat, 'f', -1, 64)
 		lng := strconv.FormatFloat(i.LatLng.Lng, 'f', -1, 64)
 		return yelpEndpoint + "?latitude=" + lat + "&longitude=" + lng + "&categories=Restaurant"
+		// return yelpEndpoint + "?location=CastroValley&categories=Restaurant" // this is a test case
 	}
 	return yelpEndpoint + "?location=" + i.location
 }
@@ -64,8 +65,11 @@ type BusinessData struct {
 		Lat float64 `json:"latitude"`
 		Lng float64 `json:"longitude"`
 	} `json:"coordinates"`
-	IsClosed bool   `json:"is_closed"`
-	ImageURL string `json:"image_url"`
+	IsClosed   bool   `json:"is_closed"`
+	ImageURL   string `json:"image_url"`
+	Categories []struct {
+		Title string `json:"title"`
+	} `json:"categories"`
 }
 
 // MappedYelpResponse struct provides a map, relating the key, which is the business ID, to the value, which is the BusinessData. ** Not sure if this will be used lol..
@@ -119,6 +123,8 @@ func FetchYelpInfoFromYelpEndpoint(loc *InitGeographicData) *YelpResponse {
 	if jsonErr != nil {
 		log.Fatal(jsonErr)
 	}
+
+	fmt.Printf("Number of records recieved %n \n", len(YelpRes.Businesses))
 
 	return &YelpRes
 
