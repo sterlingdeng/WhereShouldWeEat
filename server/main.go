@@ -24,14 +24,14 @@ const (
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
-	ID            int                      `json:"id"`
-	MaxPartySize  int                      `json:"MaxPartySize"`
-	CurrPartySize int                      `json:"CurrPartySize"`
-	Users         map[string]*User         `json:"users"`
-	Location      LatLng                   `json:"location"`
-	BusinessList  map[string]*BusinessData `json:"bizList"`
-	Messages      []string                 `json:"messages"`
-	YelpBizList   *MappedYelpResponse
+	ID            int                 `json:"id"`
+	MaxPartySize  int                 `json:"MaxPartySize"`
+	CurrPartySize int                 `json:"CurrPartySize"`
+	Users         map[string]*User    `json:"users"`
+	Location      LatLng              `json:"location"`
+	NomineeList   []*BusinessData     `json:"nomineeList"`
+	Messages      []string            `json:"messages"`
+	YelpBizList   *MappedYelpResponse // initial list to send to the client (this may not be necessary)
 	clients       map[*User]bool
 	broadcast     chan Msg   // Inbound messages from the clients
 	register      chan *User // Register request from clients
@@ -64,24 +64,20 @@ func (s *Session) deleteUser(user User) bool {
 	return false
 }
 
-func (s *Session) businessExist(bid string) bool {
-	if _, has := s.BusinessList[bid]; has {
-		return true
+func (s *Session) nomineeExist(bid string) bool {
+	for _, business := range s.NomineeList {
+		if business.ID == bid {
+			return true
+		}
 	}
 	return false
 }
 
-func (s *Session) addBusiness(b *BusinessData) {
-	if s.businessExist(b.ID) == false {
-		s.BusinessList[b.ID] = b
+func (s *Session) addNominee(b *BusinessData) {
+	if s.nomineeExist(b.ID) == false {
+		s.NomineeList = append(s.NomineeList, b)
 		// send information to users that the business list got updated
 	}
-}
-
-// SessionManager manages all active sessions and provides methods to handle sessions
-type SessionManager struct {
-	ActiveSessions map[int]*Session
-	MaxSessions    int
 }
 
 // User struct to handle individual users within Sessions
@@ -90,6 +86,12 @@ type User struct {
 	session  *Session
 	conn     *websocket.Conn // Websocket Connection
 	send     chan Msg        // Buffered channel of outbound messages
+}
+
+// SessionManager manages all active sessions and provides methods to handle sessions
+type SessionManager struct {
+	ActiveSessions map[int]*Session
+	MaxSessions    int
 }
 
 func (s *SessionManager) size() int {
@@ -127,14 +129,14 @@ func (s *SessionManager) initSession(latlng LatLng) Session {
 		CurrPartySize: 0,
 		Users:         make(map[string]*User),
 		Location:      latlng,
-		BusinessList:  make(map[string]*BusinessData), // used to vote
-		Messages:      make([]string, 100),
+		NomineeList:   make([]*BusinessData, 0), // used to vote
+		Messages:      make([]string, 0),
+		YelpBizList:   nil,
 		clients:       make(map[*User]bool),
 		broadcast:     make(chan Msg),
 		register:      make(chan *User),
 		unregister:    make(chan *User),
 		read:          make(chan Msg),
-		YelpBizList:   nil,
 	}
 
 	s.add(&session)
@@ -185,10 +187,6 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	sessionLocationData := &InitGeographicData{location: "", LatLng: req.Latlng}
 
 	yelpResPtr := FetchYelpInfoFromYelpEndpoint(sessionLocationData).ConvertYelpResponseToMappedYelpResponse()
-
-	fmt.Printf("\n")
-	// fmt.Print(yelpResPtr)
-	fmt.Printf("\n")
 
 	manager.ActiveSessions[session.ID].YelpBizList = yelpResPtr
 
@@ -249,6 +247,38 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func rtNominate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var req struct {
+		Sid      int          `json:"sid"`
+		Username string       `json:"username"`
+		Nominee  BusinessData `json:"nominee"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if has, _ := manager.hasSession(req.Sid); !has {
+		log.Fatal("session not found")
+	}
+
+	if !manager.ActiveSessions[req.Sid].nomineeExist(req.Nominee.ID) {
+		manager.ActiveSessions[req.Sid].addNominee(&req.Nominee)
+
+		msg := Msg{
+			Nominee:  req.Nominee,
+			Username: req.Username,
+		}
+
+		manager.ActiveSessions[req.Sid].broadcast <- msg
+	}
+
+}
+
 // Init books var as a slice Book struct
 /*
 Remember that in order to initialize a map, it needs to be done with var something = make(map..) because if it is initialized like var activeSession = map[int]Session initializes a nil map
@@ -275,6 +305,9 @@ func main() {
 
 	// Search Location Handlers
 	r.HandleFunc("/search", searchLocation).Methods("GET")
+
+	// Handle adding a restaurant to the nominate list
+	r.HandleFunc("/nominate", rtNominate).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(port, r))
 

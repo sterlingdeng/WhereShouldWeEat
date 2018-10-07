@@ -11,7 +11,7 @@ import (
 type Msg struct {
 	Username string       `json:"username"`
 	Message  string       `json:"msg"`
-	Business BusinessData `json:"bizdata"`
+	Nominee  BusinessData `json:"nominee"`
 }
 
 // NewHub initializes a new Hub for the chat server. There is 1 Hub per 1 Session
@@ -53,12 +53,12 @@ func (s *Session) run() {
 			// if message contains Message.. add to Messages
 			fmt.Printf("Reading Message")
 			fmt.Print(message)
-			if &message.Business != nil {
-				s.BusinessList[message.Business.ID] = &message.Business
-			} else if &message.Message != nil {
-				idMessage := message.Username + ": " + message.Message
-				s.Messages = append(s.Messages, idMessage)
-			}
+			// if &message.Business != nil {
+			// 	s.NomineeList[message.Nominee.ID] = &message.Nominee
+			// } else if &message.Message != nil {
+			idMessage := message.Username + ": " + message.Message
+			s.Messages = append(s.Messages, idMessage)
+			// }
 			fmt.Print("\n line is executing \n")
 			for client := range s.clients {
 				fmt.Print(client)

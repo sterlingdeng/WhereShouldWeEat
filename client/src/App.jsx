@@ -17,10 +17,11 @@ class App extends Component {
       render: renderEnum.GET_LOCATION,
       username: "",
       location: undefined,
-      sid: null,
+      sid: null, // session id
       bizdata: undefined,
       wsconn: null,
-      messages: []
+      messages: [],
+      nomineeList: []
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -36,6 +37,9 @@ class App extends Component {
     );
     this._handleRenderState = this._handleRenderState.bind(this);
     this._updateAppState = this._updateAppState.bind(this);
+    this._handleNominateButtonClick = this._handleNominateButtonClick.bind(
+      this
+    );
   }
 
   usernameTextChange(e) {
@@ -52,7 +56,7 @@ class App extends Component {
 
   sidValueChange(e) {
     this.setState({
-      sid: e.target.value
+      sid: Number(e.target.value)
     });
   }
 
@@ -102,15 +106,14 @@ class App extends Component {
     let response = await fetch(uri);
 
     let data = await response.json();
-    console.log(data.YelpBizList);
+
+    console.log(data.nomineeList);
     if (data.id) {
-      this.setState(
-        {
-          bizdata: data.YelpBizList,
-          render: renderEnum.LOGGED_IN
-        },
-        console.log(this.state.bizdata)
-      );
+      this.setState({
+        bizdata: data.YelpBizList,
+        render: renderEnum.LOGGED_IN,
+        nomineeList: data.nomineeList
+      });
     }
 
     return data;
@@ -133,11 +136,11 @@ class App extends Component {
 
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
-        console.log(msg);
-        if (msg.bizdata.id !== "") {
+        if (msg.nominee.id !== "") {
+          // update nominee
           this.setState(state => {
-            return { bizdata: state.bizdata.push(msg.bizdata) };
-          });
+            return { nomineeList: [...state.nomineeList, msg.nominee] };
+          }, console.log(msg));
         } else {
           // append message to the board
           this.setState({
@@ -164,6 +167,27 @@ class App extends Component {
         proceed ? this.initializeWebsocket() : false;
       })
       .catch(err => console.log(err));
+  }
+
+  //
+  //
+  async _handleNominateButtonClick(i) {
+    const payload = {
+      sid: this.state.sid,
+      username: this.state.username,
+      nominee: i
+    };
+
+    const payloadJSON = JSON.stringify(payload);
+
+    const response = await fetch("/nominate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      body: payloadJSON
+    });
+    console.log(response);
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
@@ -223,7 +247,11 @@ class App extends Component {
             wsconn={this.state.wsconn}
             username={this.state.username}
             messages={this.state.messages}
+            // for business list
             yelpBusinessList={this.state.bizdata}
+            handleNominateClick={this._handleNominateButtonClick}
+            // for nominee list
+            nomineeList={this.state.nomineeList}
           />
         );
       }
@@ -232,9 +260,7 @@ class App extends Component {
     return (
       <div className="App">
         {crGetLocation}
-
         {crLanding}
-
         {crAppContainer}
       </div>
     );

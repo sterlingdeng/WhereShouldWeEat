@@ -2,13 +2,13 @@ import React, { Component } from "react";
 import Sidebar from "./Sidebar";
 import GoogleMaps from "./GoogleMaps";
 import ListDisplay from "./ListDisplay";
+import NomineeList from "./NomineeList";
 
 export default class AppContainer extends Component {
   constructor(props) {
     super(props);
   }
   render() {
-    console.log(this.props);
     return (
       <div className="container-fluid">
         <div className="row">
@@ -18,7 +18,10 @@ export default class AppContainer extends Component {
             messages={this.props.messages}
             className="sidebar"
           />
-          <ListDisplay yelpBusinessList={this.props.yelpBusinessList} />
+          <ListDisplay
+            yelpBusinessList={this.props.yelpBusinessList}
+            handleNominateClick={this.props.handleNominateClick}
+          />
 
           <div className="col">
             <GoogleMaps
@@ -26,7 +29,9 @@ export default class AppContainer extends Component {
               getLocation={this.props.getLocation}
               yelpBusinessList={this.props.yelpBusinessList}
             />
-            <div>Chat here</div>
+            <div className="row">
+              <NomineeList nomineeList={this.props.nomineeList} />
+            </div>
           </div>
         </div>
       </div>

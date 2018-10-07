@@ -48,6 +48,15 @@ const ListDisplay = props => {
           </div>
           <div className="row">
             <div>{categoryList.get(idx)}</div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                props.handleNominateClick(business);
+              }}
+            >
+              Nominate
+            </button>
           </div>
         </div>
       </div>
