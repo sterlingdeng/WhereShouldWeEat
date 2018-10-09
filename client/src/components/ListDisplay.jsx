@@ -34,7 +34,7 @@ const ListDisplay = props => {
           <div className="row">
             <div className="col text-left business-name ">
               <div>
-                <b>{idx + 1}.</b> {business.name}
+                <b>{idx + 1 + props.yelpOffset}.</b> {business.name}
               </div>
               <div>
                 {business.rating} <b>{business.review_count}</b>
@@ -63,7 +63,59 @@ const ListDisplay = props => {
     );
   });
 
-  return <div className="col-5 list-display">{list}</div>;
+  // Conditional rendering
+  const BackNextButtons = (() => {
+    if (props.yelpOffset === 0) {
+      return (
+        <div className="row justify-content-center">
+          <div className={"m-2"} style={{ float: "left" }}>
+            <button type="button" className="btn btn-secondary" disabled>
+              Back
+            </button>
+          </div>
+          <div className={"m-2"} style={{ float: "right" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={props.handleNextBusinessList}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="row justify-content-center">
+          <div className={"m-2"} style={{ float: "left" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={props.handleBackBusinessList}
+            >
+              Back
+            </button>
+          </div>
+          <div className={"m-2"} style={{ float: "right" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={props.handleNextBusinessList}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      );
+    }
+  })();
+
+  return (
+    <div className="col-5 list-display">
+      {list}
+      <div>{BackNextButtons}</div>
+    </div>
+  );
 };
 
 export default ListDisplay;

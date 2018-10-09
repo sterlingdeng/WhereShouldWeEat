@@ -25,26 +25,36 @@ type Location struct {
 	ZipCode        string    `json:"zip_code"`
 	Country        string    `json:"country"`
 	DisplayAddress [2]string `json:"display_address"`
-	CrossStreets   string    `json:"cross_streets`
+	CrossStreets   string    `json:"cross_streets"`
 }
 
-// InitGeographicData struct contains the location and lat & lng data that is sent from the client when a new session is created
-type InitGeographicData struct {
+// YelpSearchParameters struct contains the location and lat & lng data that is sent from the client when a new session is created
+// THESE CAN ALL BE STRINGS.....
+type YelpSearchParameters struct {
 	location string `json:"location"` // provide location such as NYC, or San Francisco, CA
 	LatLng   LatLng
+	Offset   string `json:"offset"`
 }
 
-func (i *InitGeographicData) assembleURI() string {
+func (i *YelpSearchParameters) assembleURI() string {
 
-	const yelpEndpoint string = "https://api.yelp.com/v3/businesses/search"
+	yelpEndpoint := "https://api.yelp.com/v3/businesses/search"
 
 	if &i.LatLng.Lat != nil && &i.LatLng.Lng != nil {
 		lat := strconv.FormatFloat(i.LatLng.Lat, 'f', -1, 64)
 		lng := strconv.FormatFloat(i.LatLng.Lng, 'f', -1, 64)
-		return yelpEndpoint + "?latitude=" + lat + "&longitude=" + lng + "&categories=Restaurant"
+		yelpEndpoint += "?latitude=" + lat + "&longitude=" + lng + "&categories=Restaurant"
 		// return yelpEndpoint + "?location=CastroValley&categories=Restaurant" // this is a test case
+	} else {
+		yelpEndpoint += "?location=" + i.location
 	}
-	return yelpEndpoint + "?location=" + i.location
+
+	if &i.Offset != nil {
+		// offset := strconv.FormatInt(i.Offset, 32)
+		yelpEndpoint += "&offset=" + i.Offset
+	}
+
+	return yelpEndpoint
 }
 
 // YelpResponse provides a struct to unmarshal the JSON from the yelp API
@@ -90,7 +100,7 @@ func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *MappedYelpResp
 }
 
 // FetchYelpInfoFromYelpEndpoint function performs the GET call to the yelp API
-func FetchYelpInfoFromYelpEndpoint(loc *InitGeographicData) *YelpResponse {
+func FetchYelpInfoFromYelpEndpoint(loc *YelpSearchParameters) *YelpResponse {
 	addr := loc.assembleURI()
 	fmt.Printf("%s\n", addr)
 

@@ -184,7 +184,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	// update yelp business address
 
-	sessionLocationData := &InitGeographicData{location: "", LatLng: req.Latlng}
+	sessionLocationData := &YelpSearchParameters{location: "", LatLng: req.Latlng}
 
 	yelpResPtr := FetchYelpInfoFromYelpEndpoint(sessionLocationData).ConvertYelpResponseToMappedYelpResponse()
 
@@ -233,10 +233,11 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 	loc := v.Get("location")
 	lat, _ := strconv.ParseFloat(v.Get("lat"), 64)
 	lng, _ := strconv.ParseFloat(v.Get("lng"), 64)
+	offset := v.Get("offset")
 
-	clientGeographicData := InitGeographicData{location: loc, LatLng: LatLng{Lat: lat, Lng: lng}}
+	searchParameters := &YelpSearchParameters{location: loc, LatLng: LatLng{Lat: lat, Lng: lng}, Offset: offset}
 
-	yelpResponseStruct := FetchYelpInfoFromYelpEndpoint(&clientGeographicData)
+	yelpResponseStruct := FetchYelpInfoFromYelpEndpoint(searchParameters).ConvertYelpResponseToMappedYelpResponse()
 
 	jsonEncodeErr := json.NewEncoder(w).Encode(yelpResponseStruct)
 
@@ -301,7 +302,7 @@ func main() {
 	r.HandleFunc("/JoinSession", joinSession).Methods("GET")
 
 	// Yelp API handlers
-	r.HandleFunc("/yelpdata", handleClientYelpReq).Methods("GET")
+	r.HandleFunc("/yelpsearch", handleClientYelpReq).Methods("GET")
 
 	// Search Location Handlers
 	r.HandleFunc("/search", searchLocation).Methods("GET")

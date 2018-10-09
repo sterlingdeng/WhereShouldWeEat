@@ -19,6 +19,7 @@ class App extends Component {
       location: undefined,
       sid: null, // session id
       bizdata: undefined,
+      yelpOffset: 0,
       wsconn: null,
       messages: [],
       nomineeList: []
@@ -40,6 +41,8 @@ class App extends Component {
     this._handleNominateButtonClick = this._handleNominateButtonClick.bind(
       this
     );
+    this._handleBackBusinessList = this._handleBackBusinessList.bind(this);
+    this._handleNextBusinessList = this._handleNextBusinessList.bind(this);
   }
 
   usernameTextChange(e) {
@@ -151,6 +154,28 @@ class App extends Component {
     }
   }
 
+  async reqYelpData() {
+    let url = "/yelpsearch?";
+
+    if (this.state.location.lat && this.state.location.lng) {
+      url += `lat=${this.state.location.lat}&lng=${this.state.location.lng}`;
+    } else {
+      url += `location=${this.state.location.loc}`;
+    }
+    url += `&offset=${this.state.yelpOffset}`;
+
+    try {
+      const response = await fetch(url);
+      const body = await response.json();
+      console.log(body);
+      this.setState({
+        bizdata: body
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   handleCreateSessionButtonClick() {
     this.createSession()
       // If server can successfully create session, response will be Session ID
@@ -188,6 +213,21 @@ class App extends Component {
       body: payloadJSON
     });
     console.log(response);
+  }
+
+  _handleNextBusinessList() {
+    this.setState(state => {
+      return { yelpOffset: state.yelpOffset + 20 };
+    }, this.reqYelpData);
+  }
+
+  _handleBackBusinessList() {
+    // Change offset to -20
+    if (this.state.yelpOffset !== 0) {
+      this.setState(state => {
+        return { yelpOffset: state.yelpOffset - 20 };
+      }, this.reqYelpData);
+    }
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
@@ -250,6 +290,9 @@ class App extends Component {
             // for business list
             yelpBusinessList={this.state.bizdata}
             handleNominateClick={this._handleNominateButtonClick}
+            yelpOffset={this.state.yelpOffset}
+            handleBackBusinessList={this._handleBackBusinessList}
+            handleNextBusinessList={this._handleNextBusinessList}
             // for nominee list
             nomineeList={this.state.nomineeList}
           />

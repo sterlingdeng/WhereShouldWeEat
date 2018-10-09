@@ -21,6 +21,9 @@ export default class AppContainer extends Component {
           <ListDisplay
             yelpBusinessList={this.props.yelpBusinessList}
             handleNominateClick={this.props.handleNominateClick}
+            yelpOffset={this.props.yelpOffset}
+            handleBackBusinessList={this.props.handleBackBusinessList}
+            handleNextBusinessList={this.props.handleNextBusinessList}
           />
 
           <div className="col">
