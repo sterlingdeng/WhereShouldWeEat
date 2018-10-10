@@ -112,8 +112,8 @@ const ListDisplay = props => {
 
   return (
     <div className="col-5 list-display">
-      {list}
       <div>{BackNextButtons}</div>
+      {list}
     </div>
   );
 };

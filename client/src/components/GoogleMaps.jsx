@@ -7,11 +7,26 @@ export default class GoogleMaps extends Component {
     this.state = {
       map: undefined,
       apiLoaded: false,
-      currentInfoWindow: undefined
+      currentInfoWindow: undefined,
+      currentMarkers: []
     };
     this.initMap = this.initMap.bind(this);
     this._renderMarkers = this._renderMarkers.bind(this);
-    this._updateMarkers = this._updateMarkers.bind(this);
+    this._createMarkers = this._createMarkers.bind(this);
+    this._deleteMarkers = this._deleteMarkers.bind(this);
+  }
+
+  _createMarkers() {
+    if (this.props.yelpBusinessList === undefined) {
+      return;
+    }
+
+    for (let business in this.props.yelpBusinessList.MappedBusinessStruct) {
+      const businessData = this.props.yelpBusinessList.MappedBusinessStruct[
+        business
+      ];
+      this._renderMarkers(businessData);
+    }
   }
 
   componentWillMount() {
@@ -22,11 +37,15 @@ export default class GoogleMaps extends Component {
       }
     );
     window.initMap = this.initMap;
-    window._updateMarkers = this._updateMarkers;
+    window._createMarkers = this._createMarkers;
   }
 
   componentDidUpdate() {
-    this._updateMarkers();
+    if (this.state.currentMarkers.length <= 20) {
+      this._createMarkers();
+    } else {
+      this._deleteMarkers();
+    }
   }
 
   initMap() {
@@ -51,17 +70,13 @@ export default class GoogleMaps extends Component {
     }
   }
 
-  _updateMarkers() {
-    if (this.props.yelpBusinessList === undefined) {
-      return;
-    }
-
-    for (let business in this.props.yelpBusinessList.MappedBusinessStruct) {
-      const businessData = this.props.yelpBusinessList.MappedBusinessStruct[
-        business
-      ];
-      this._renderMarkers(businessData);
-    }
+  _deleteMarkers() {
+    this.state.currentMarkers.forEach(marker => {
+      marker.setMap(null);
+    });
+    this.setState({
+      currentMarkers: []
+    });
   }
 
   //latlng = {lat: lat, lng: lng}
@@ -80,6 +95,13 @@ export default class GoogleMaps extends Component {
       title: "hello"
     });
     marker.setMap(this.state.map);
+
+    this.setState(
+      {
+        currentMarkers: [...this.state.currentMarkers, marker]
+      },
+      console.log(this.state.currentMarkers)
+    );
 
     // Next, render the content inside the marker. This should somewhat resemble
     // how yelp renders information in their markers.
