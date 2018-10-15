@@ -88,15 +88,15 @@ type MappedYelpResponse struct {
 }
 
 // ConvertYelpResponseToMappedYelpResponse converts the YelpResponse struc to the mapped data structure, with the key as the ID and value as the BusinessData
-func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *MappedYelpResponse {
-	mappedPtr := &MappedYelpResponse{make(map[string]BusinessData)}
+func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *map[string]BusinessData {
+	mappedPtr := make(map[string]BusinessData)
 
 	for index, key := range y.Businesses {
-		mappedPtr.MappedBusinessStruct[key.Name] = key
+		mappedPtr[key.Name] = key
 		fmt.Print(index)
 	}
 
-	return mappedPtr
+	return &mappedPtr
 }
 
 // FetchYelpInfoFromYelpEndpoint function performs the GET call to the yelp API

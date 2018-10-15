@@ -80,6 +80,7 @@ export default class GetLocation extends Component {
   };
 
   _renderOptions = () => {
+    console.log(this.state.options);
     this.state.options.map(item => {
       `${item.place_name}, ${item.state}, ${item.zip_code}`;
     });
@@ -110,7 +111,6 @@ export default class GetLocation extends Component {
         <div className="container-fluid">
           <b> Location Not Found</b>
           <AsyncTypeahead
-            {...this.state}
             options={this._renderOptions()}
             labelKey="login"
             onSearch={this._handleSearch}

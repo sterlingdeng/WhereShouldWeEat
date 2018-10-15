@@ -2,13 +2,13 @@ import React from "react";
 
 const ListDisplay = props => {
   let businessArr = [];
+  let listJSX = [];
+  let categoryList = new Map();
 
-  for (let business in props.yelpBusinessList.MappedBusinessStruct) {
-    const businessData = props.yelpBusinessList.MappedBusinessStruct[business];
+  for (let business in props.yelpBusinessList) {
+    const businessData = props.yelpBusinessList[business];
     businessArr.push(businessData);
   }
-
-  let categoryList = new Map();
 
   businessArr.map((business, idx) => {
     let temp = [];
@@ -24,47 +24,56 @@ const ListDisplay = props => {
     categoryList.set(idx, temp);
   });
 
-  let list = businessArr.map((business, idx) => {
+  listJSX = businessArr.map((business, idx) => {
     return (
-      <div className="list-item row" key={idx}>
-        <div className="col">
-          <img className="business-icon" src={business.image_url} />
-        </div>
-        <div className="col">
-          <div className="row">
-            <div className="col text-left business-name ">
-              <div>
-                <b>{idx + 1 + props.yelpOffset}.</b> {business.name}
+      <div key={idx}>
+        <div className="list-item row" key={idx}>
+          <div className="col">
+            <img
+              className="business-icon"
+              src={business.image_url}
+              alt="thumbnail"
+            />
+          </div>
+          <div className="col">
+            <div className="row">
+              <div className="col text-left business-name ">
+                <div>
+                  <b>{idx + 1 + props.yelpOffset}.</b> {business.name}
+                </div>
+                <div>
+                  {business.rating} <b>{business.review_count}</b>
+                </div>
+                <div>{business.price}</div>
               </div>
-              <div>
-                {business.rating} <b>{business.review_count}</b>
+              <div className="col">
+                <div>{business.location.display_address[0]}</div>
+                <div>{business.location.display_address[1]}</div>
               </div>
-              <div>{business.price}</div>
             </div>
-            <div className="col">
-              <div>{business.location.display_address[0]}</div>
-              <div>{business.location.display_address[1]}</div>
+            <div className="row">
+              <div>{categoryList.get(idx)}</div>
+            </div>
+            <div className="row btn-container">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  props.handleNominateClick(business);
+                }}
+              >
+                Nominate
+              </button>
             </div>
           </div>
-          <div className="row">
-            <div>{categoryList.get(idx)}</div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                props.handleNominateClick(business);
-              }}
-            >
-              Nominate
-            </button>
-          </div>
         </div>
+        <hr />
       </div>
     );
   });
 
   // Conditional rendering
-  const BackNextButtons = (() => {
+  const BackNextButtonsJSX = (() => {
     if (props.yelpOffset === 0) {
       return (
         <div className="row justify-content-center">
@@ -112,8 +121,8 @@ const ListDisplay = props => {
 
   return (
     <div className="col-5 list-display">
-      <div>{BackNextButtons}</div>
-      {list}
+      <div>{BackNextButtonsJSX}</div>
+      {listJSX}
     </div>
   );
 };

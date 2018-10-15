@@ -1,3 +1,7 @@
+html * {
+  font-size: 1em !important;
+}
+
 html,
 body {
   height: 100%;
@@ -12,9 +16,7 @@ body {
   margin-top: 10px;
   padding: 5 5 5 5;
   position: relative;
-
   height: 100px;
-
   overflow: auto;
 }
 
@@ -33,7 +35,7 @@ body {
 }
 
 .map-container {
-  height: 80vh;
+  height: 40vh;
   width: auto;
 }
 
@@ -44,6 +46,7 @@ body {
 
 #map {
   height: 100%;
+  position: fixed;
 }
 
 .sidebar {
@@ -52,7 +55,7 @@ body {
 }
 
 .list-display {
-  background-color: grey;
+  overflow: scroll;
 }
 .business-icon {
   height: 210px;
@@ -61,12 +64,9 @@ body {
 }
 
 .list-item {
-  margin: 5px;
-  padding: 5px;
   background-color: white;
 }
 
 .business-name {
   background-color: beige;
 }
-  
