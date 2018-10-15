@@ -3,11 +3,13 @@ import "./App.css";
 import Landing from "./components/Landing";
 import GetLocation from "./components/GetLocation";
 import AppContainer from "./components/AppContainer";
+import VotingContainer from "./components/VotingContainer";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
   SESSION_LANDING: 2, // once a location (latlng) is found or inputted
-  LOGGED_IN: 3 // logged in
+  LOGGED_IN: 3, // logged in
+  VOTING: 4
 };
 
 class App extends Component {
@@ -22,7 +24,8 @@ class App extends Component {
       yelpOffset: 0,
       wsconn: null,
       messages: [],
-      nomineeList: []
+      nomineeList: [],
+      readyUp: false
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -43,6 +46,7 @@ class App extends Component {
     );
     this._handleBackBusinessList = this._handleBackBusinessList.bind(this);
     this._handleNextBusinessList = this._handleNextBusinessList.bind(this);
+    this._handleReadyUpButtonClick = this._handleReadyUpButtonClick.bind(this);
   }
 
   usernameTextChange(e) {
@@ -90,6 +94,7 @@ class App extends Component {
     });
 
     const data = await response.json();
+    console.log(data);
     this.setState({
       sid: data.id,
       bizdata: data
@@ -109,8 +114,7 @@ class App extends Component {
     let response = await fetch(uri);
 
     let data = await response.json();
-
-    console.log(data.nomineeList);
+    console.log(data);
     if (data.id) {
       this.setState({
         bizdata: data.YelpBizList,
@@ -215,6 +219,36 @@ class App extends Component {
     console.log(response);
   }
 
+  _handleReadyUpButtonClick() {
+    const currState = this.state.readyUp;
+    const newState = !this.state.readyUp;
+
+    const fetchurl = state => {
+      let url = "/ReadyUp?";
+      const sid = `sid=${this.state.sid}`;
+      const username = `&username=${this.state.username}`;
+      const isready = `&readyup=${state}`;
+      console.log(isready);
+
+      url += sid + username + isready;
+      console.log(url);
+      try {
+        let response = fetch(url);
+        console.log(response);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    this.setState(state => {
+      return {
+        readyUp: newState,
+        render: renderEnum.LOGGED_IN
+      };
+    }, fetchurl(newState));
+    console.log("reached");
+  }
+
   _handleNextBusinessList() {
     this.setState(state => {
       return { yelpOffset: state.yelpOffset + 20 };
@@ -295,8 +329,15 @@ class App extends Component {
             handleNextBusinessList={this._handleNextBusinessList}
             // for nominee list
             nomineeList={this.state.nomineeList}
+            readyUp={this._handleReadyUpButtonClick}
           />
         );
+      }
+    })();
+
+    const crVotingContainer = (() => {
+      if (this.state.render === renderEnum.VOTING) {
+        return <VotingContainer />;
       }
     })();
 
@@ -305,6 +346,7 @@ class App extends Component {
         {crGetLocation}
         {crLanding}
         {crAppContainer}
+        {crVotingContainer}
       </div>
     );
   }

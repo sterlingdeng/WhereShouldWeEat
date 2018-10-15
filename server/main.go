@@ -21,17 +21,23 @@ const (
 	wsURL               string = "localhost" + wsport
 )
 
+type NomineeStruct struct {
+	Business *BusinessData
+	Votes    int
+}
+
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
-	ID            int                 `json:"id"`
-	MaxPartySize  int                 `json:"MaxPartySize"`
-	CurrPartySize int                 `json:"CurrPartySize"`
-	Users         map[string]*User    `json:"users"`
-	Location      LatLng              `json:"location"`
-	NomineeList   []*BusinessData     `json:"nomineeList"`
-	Messages      []string            `json:"messages"`
-	YelpBizList   *MappedYelpResponse // initial list to send to the client (this may not be necessary)
+	ID            int                      `json:"id"`
+	MaxPartySize  int                      `json:"MaxPartySize"`
+	CurrPartySize int                      `json:"CurrPartySize"`
+	Users         map[string]*User         `json:"users"`
+	Location      LatLng                   `json:"location"`
+	NomineeList   map[string]NomineeStruct `json:"nomineeList"`
+	Messages      []string                 `json:"messages"`
+	YelpBizList   map[string]BusinessData  // initial list to send to the client (this may not be necessary)
+	state         int
 	clients       map[*User]bool
 	broadcast     chan Msg   // Inbound messages from the clients
 	register      chan *User // Register request from clients
@@ -39,7 +45,7 @@ type Session struct {
 	read          chan Msg   // Read message from client and adds info to db
 }
 
-func (s *Session) hasUser(uid string) bool {
+func (s Session) hasUser(uid string) bool {
 	if _, has := s.Users[uid]; has {
 		return true
 	}
@@ -65,8 +71,8 @@ func (s *Session) deleteUser(user User) bool {
 }
 
 func (s *Session) nomineeExist(bid string) bool {
-	for _, business := range s.NomineeList {
-		if business.ID == bid {
+	for _, nominee := range s.NomineeList {
+		if nominee.Business.ID == bid {
 			return true
 		}
 	}
@@ -75,17 +81,42 @@ func (s *Session) nomineeExist(bid string) bool {
 
 func (s *Session) addNominee(b *BusinessData) {
 	if s.nomineeExist(b.ID) == false {
-		s.NomineeList = append(s.NomineeList, b)
+		newNominee := NomineeStruct{
+			Business: b,
+			Votes:    0,
+		}
+		s.NomineeList[b.ID] = newNominee
 		// send information to users that the business list got updated
 	}
 }
 
+func (s Session) areAllUsersReady() bool {
+	usersAreReady := true
+	for _, user := range s.Users {
+		if user.ReadyUp == false {
+			usersAreReady = false
+			break
+		}
+	}
+	return usersAreReady
+}
+
+func (s *Session) startVotePhase() {
+	//	need to send responses to the users..
+	//
+	s.state = 1
+	// change state so that in voting phase
+
+}
+
 // User struct to handle individual users within Sessions
 type User struct {
-	Username string `json:"username"`
-	session  *Session
-	conn     *websocket.Conn // Websocket Connection
-	send     chan Msg        // Buffered channel of outbound messages
+	Username  string `json:"username"`
+	ReadyUp   bool   `json:"ready"`
+	votesLeft int
+	session   *Session
+	conn      *websocket.Conn // Websocket Connection
+	send      chan Msg        // Buffered channel of outbound messages
 }
 
 // SessionManager manages all active sessions and provides methods to handle sessions
@@ -99,17 +130,16 @@ func (s *SessionManager) size() int {
 }
 
 func (s *SessionManager) hasSession(sid int) (bool, *Session) {
-	if _, has := s.ActiveSessions[sid]; has {
-		return true, s.ActiveSessions[sid]
+	if session, has := s.ActiveSessions[sid]; has {
+		return true, session
 	}
 	return false, nil
 }
 
-func (s *SessionManager) delete(sid int) interface{} {
+func (s *SessionManager) delete(sid int) {
 	if has, _ := s.hasSession(sid); has {
 		delete(s.ActiveSessions, sid)
 	}
-	return nil
 }
 
 func (s *SessionManager) add(session *Session) bool {
@@ -129,7 +159,7 @@ func (s *SessionManager) initSession(latlng LatLng) Session {
 		CurrPartySize: 0,
 		Users:         make(map[string]*User),
 		Location:      latlng,
-		NomineeList:   make([]*BusinessData, 0), // used to vote
+		NomineeList:   make(map[string]NomineeStruct, 0), // used to vote
 		Messages:      make([]string, 0),
 		YelpBizList:   nil,
 		clients:       make(map[*User]bool),
@@ -177,7 +207,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	session := manager.initSession(req.Latlng)
 
-	user := User{Username: req.Username}
+	user := User{Username: req.Username, ReadyUp: false, votesLeft: 3}
 
 	manager.ActiveSessions[session.ID].addUser(user)
 	manager.ActiveSessions[session.ID].Location = req.Latlng
@@ -188,7 +218,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	yelpResPtr := FetchYelpInfoFromYelpEndpoint(sessionLocationData).ConvertYelpResponseToMappedYelpResponse()
 
-	manager.ActiveSessions[session.ID].YelpBizList = yelpResPtr
+	manager.ActiveSessions[session.ID].YelpBizList = *yelpResPtr
 
 	obj, _ := manager.ActiveSessions[session.ID]
 
@@ -204,9 +234,7 @@ query parameters: [id, username]
 
 func joinSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
 	v := r.URL.Query()
-
 	newUsername := v.Get("username")
 	seshID, _ := strconv.Atoi(v.Get("id"))
 
@@ -267,17 +295,51 @@ func rtNominate(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("session not found")
 	}
 
-	if !manager.ActiveSessions[req.Sid].nomineeExist(req.Nominee.ID) {
-		manager.ActiveSessions[req.Sid].addNominee(&req.Nominee)
+	session := manager.ActiveSessions[req.Sid]
+
+	if !session.nomineeExist(req.Nominee.ID) {
+		session.addNominee(&req.Nominee)
 
 		msg := Msg{
-			Nominee:  req.Nominee,
+			Nominee:  session.NomineeList[req.Nominee.ID],
 			Username: req.Username,
 		}
 
 		manager.ActiveSessions[req.Sid].broadcast <- msg
 	}
+}
 
+func readyUp(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	v := r.URL.Query()
+	username := v.Get("username")
+	sid, _ := strconv.Atoi(v.Get("sid"))
+	isReady, boolerr := strconv.ParseBool(v.Get("readyup"))
+
+	if boolerr != nil {
+		log.Fatal(boolerr)
+	}
+
+	var session *Session
+	var has bool
+
+	if has, session = manager.hasSession(sid); !has {
+		log.Fatal(err)
+	}
+
+	if !session.hasUser(username) {
+		log.Fatal(err)
+	}
+
+	session.Users[username].ReadyUp = isReady
+	fmt.Printf("\n %b", session.areAllUsersReady())
+	if session.areAllUsersReady() {
+		// execute code to begin the vote phase
+		// send information to u
+		fmt.Print("connected")
+		// session.startVotePhase()
+	}
 }
 
 // Init books var as a slice Book struct
@@ -300,6 +362,7 @@ func main() {
 	// Router Handlers / Endpoints
 	r.HandleFunc("/CreateSession", createSession).Methods("POST")
 	r.HandleFunc("/JoinSession", joinSession).Methods("GET")
+	r.HandleFunc("/ReadyUp", readyUp).Methods("GET")
 
 	// Yelp API handlers
 	r.HandleFunc("/yelpsearch", handleClientYelpReq).Methods("GET")

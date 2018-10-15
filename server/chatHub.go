@@ -9,9 +9,11 @@ import (
 
 // Msg struct defines the json format that is to be recieved
 type Msg struct {
-	Username string       `json:"username"`
-	Message  string       `json:"msg"`
-	Nominee  BusinessData `json:"nominee"`
+	Username string        `json:"username"`
+	Message  string        `json:"msg"`
+	Nominee  NomineeStruct `json:"nominee"`
+	ReadyUp  bool          `json:"readyup"`
+	AllReady bool          `json:"allReady"`
 }
 
 // NewHub initializes a new Hub for the chat server. There is 1 Hub per 1 Session
@@ -52,13 +54,9 @@ func (s *Session) run() {
 			// if message contains business info, need to add to busines list
 			// if message contains Message.. add to Messages
 			fmt.Printf("Reading Message")
-			fmt.Print(message)
-			// if &message.Business != nil {
-			// 	s.NomineeList[message.Nominee.ID] = &message.Nominee
-			// } else if &message.Message != nil {
 			idMessage := message.Username + ": " + message.Message
 			s.Messages = append(s.Messages, idMessage)
-			// }
+
 			fmt.Print("\n line is executing \n")
 			for client := range s.clients {
 				fmt.Print(client)
