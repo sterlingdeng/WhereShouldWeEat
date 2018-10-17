@@ -7,13 +7,16 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
 const (
-	maxPartySize        int    = 10
+	maxPartySize int = 10
+	votesPerUser int = 3
+	// voteTimeInSec       int    = 60
 	newSessionRandomInt int    = 9999
 	currURL             string = "localhost" + port
 	port                string = ":8000"
@@ -21,28 +24,25 @@ const (
 	wsURL               string = "localhost" + wsport
 )
 
-type NomineeStruct struct {
-	Business *BusinessData
-	Votes    int
-}
-
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
-	ID            int                      `json:"id"`
-	MaxPartySize  int                      `json:"MaxPartySize"`
-	CurrPartySize int                      `json:"CurrPartySize"`
-	Users         map[string]*User         `json:"users"`
-	Location      LatLng                   `json:"location"`
-	NomineeList   map[string]NomineeStruct `json:"nomineeList"`
-	Messages      []string                 `json:"messages"`
-	YelpBizList   map[string]BusinessData  // initial list to send to the client (this may not be necessary)
-	state         int
-	clients       map[*User]bool
-	broadcast     chan Msg   // Inbound messages from the clients
-	register      chan *User // Register request from clients
-	unregister    chan *User // Unregister request from  clients
-	read          chan Msg   // Read message from client and adds info to db
+	ID              int                      `json:"id"`
+	MaxPartySize    int                      `json:"MaxPartySize"`
+	CurrPartySize   int                      `json:"CurrPartySize"`
+	Users           map[string]*User         `json:"users"`
+	Location        LatLng                   `json:"location"`
+	NomineeList     map[string]NomineeStruct `json:"nomineeList"`
+	Messages        []string                 `json:"messages"`
+	TimeInitialized time.Time
+	TimeVoteInit    time.Time
+	YelpBizList     map[string]BusinessData // initial list to send to the client (this may not be necessary)
+	state           int
+	clients         map[*User]bool
+	broadcast       chan Msg   // Inbound messages from the clients
+	register        chan *User // Register request from clients
+	unregister      chan *User // Unregister request from  clients
+	read            chan Msg   // Read message from client and adds info to db
 }
 
 func (s Session) hasUser(uid string) bool {
@@ -103,10 +103,40 @@ func (s Session) areAllUsersReady() bool {
 
 func (s *Session) startVotePhase() {
 	//	need to send responses to the users..
-	//
-	s.state = 1
-	// change state so that in voting phase
 
+	// change state so that in voting phase
+	// set timer
+	// countdown
+	// when timer gets to zero, see what is the highest vote
+
+}
+
+func (s *Session) startVoteTimer() {
+	tick := time.Tick(time.Second)
+	end := time.After(60 * time.Second)
+	counter := 60
+	for {
+		select {
+		case <-tick:
+			//do something
+			fmt.Printf("tick %i", counter)
+			msg := Msg{
+				Username: "server",
+				Message:  fmt.Sprintf("%i", counter),
+			}
+			s.broadcast <- msg
+			counter--
+		case <-end:
+			//do something
+			fmt.Print("do somehting")
+			return
+		}
+	}
+}
+
+type NomineeStruct struct {
+	Business *BusinessData
+	Votes    int
 }
 
 // User struct to handle individual users within Sessions
@@ -150,32 +180,32 @@ func (s *SessionManager) add(session *Session) bool {
 	return true
 }
 
-func (s *SessionManager) initSession(latlng LatLng) Session {
+func (s *SessionManager) initSession(latlng LatLng) *Session {
 	//create a new session... add session to the session manager
 
 	session := Session{
-		ID:            rand.Intn(newSessionRandomInt),
-		MaxPartySize:  maxPartySize,
-		CurrPartySize: 0,
-		Users:         make(map[string]*User),
-		Location:      latlng,
-		NomineeList:   make(map[string]NomineeStruct, 0), // used to vote
-		Messages:      make([]string, 0),
-		YelpBizList:   nil,
-		clients:       make(map[*User]bool),
-		broadcast:     make(chan Msg),
-		register:      make(chan *User),
-		unregister:    make(chan *User),
-		read:          make(chan Msg),
+		ID:              rand.Intn(newSessionRandomInt),
+		MaxPartySize:    maxPartySize,
+		CurrPartySize:   0,
+		Users:           make(map[string]*User),
+		Location:        latlng,
+		NomineeList:     make(map[string]NomineeStruct, 0), // used to vote
+		Messages:        make([]string, 0),
+		TimeInitialized: time.Now(),
+		YelpBizList:     nil,
+		clients:         make(map[*User]bool),
+		broadcast:       make(chan Msg),
+		register:        make(chan *User),
+		unregister:      make(chan *User),
+		read:            make(chan Msg),
 	}
 
 	s.add(&session)
+	fmt.Println("Initializing Chat Server\n")
+	ChatServerInstance := chatServerFactory()
+	go ChatServerInstance(&session)
 
-	// initialize chat server
-	fmt.Println("initialize chat server")
-	go ChatServerInit(&session)
-
-	return session
+	return &session
 }
 
 /*
@@ -193,7 +223,6 @@ The conversion from a city string to a latlng can be done using another end poin
 func createSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// req struct provides a target to unpack the JSON data to
 	var req struct {
 		Username string `json:"username"`
 		Latlng   LatLng `json:"latlng"`
@@ -205,24 +234,23 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
+	user := User{
+		Username:  req.Username,
+		ReadyUp:   false,
+		votesLeft: votesPerUser,
+	}
+
 	session := manager.initSession(req.Latlng)
-
-	user := User{Username: req.Username, ReadyUp: false, votesLeft: 3}
-
-	manager.ActiveSessions[session.ID].addUser(user)
-	manager.ActiveSessions[session.ID].Location = req.Latlng
+	session.addUser(user)
+	session.Location = req.Latlng
 
 	// update yelp business address
-
-	sessionLocationData := &YelpSearchParameters{location: "", LatLng: req.Latlng}
-
+	sessionLocationData := &YelpSearchParameters{LatLng: req.Latlng}
 	yelpResPtr := FetchYelpInfoFromYelpEndpoint(sessionLocationData).ConvertYelpResponseToMappedYelpResponse()
 
-	manager.ActiveSessions[session.ID].YelpBizList = *yelpResPtr
+	session.YelpBizList = *yelpResPtr
 
-	obj, _ := manager.ActiveSessions[session.ID]
-
-	json.NewEncoder(w).Encode(obj)
+	json.NewEncoder(w).Encode(session)
 
 }
 
@@ -263,7 +291,14 @@ func handleClientYelpReq(w http.ResponseWriter, r *http.Request) {
 	lng, _ := strconv.ParseFloat(v.Get("lng"), 64)
 	offset := v.Get("offset")
 
-	searchParameters := &YelpSearchParameters{location: loc, LatLng: LatLng{Lat: lat, Lng: lng}, Offset: offset}
+	searchParameters := &YelpSearchParameters{
+		location: loc,
+		LatLng: LatLng{
+			Lat: lat,
+			Lng: lng,
+		},
+		Offset: offset,
+	}
 
 	yelpResponseStruct := FetchYelpInfoFromYelpEndpoint(searchParameters).ConvertYelpResponseToMappedYelpResponse()
 
@@ -299,13 +334,15 @@ func rtNominate(w http.ResponseWriter, r *http.Request) {
 
 	if !session.nomineeExist(req.Nominee.ID) {
 		session.addNominee(&req.Nominee)
+		arr := [1]NomineeStruct{session.NomineeList[req.Nominee.ID]}
 
 		msg := Msg{
-			Nominee:  session.NomineeList[req.Nominee.ID],
+
 			Username: req.Username,
+			Nominee:  arr,
 		}
 
-		manager.ActiveSessions[req.Sid].broadcast <- msg
+		session.broadcast <- msg
 	}
 }
 
@@ -335,10 +372,8 @@ func readyUp(w http.ResponseWriter, r *http.Request) {
 	session.Users[username].ReadyUp = isReady
 	fmt.Printf("\n %b", session.areAllUsersReady())
 	if session.areAllUsersReady() {
-		// execute code to begin the vote phase
-		// send information to u
-		fmt.Print("connected")
-		// session.startVotePhase()
+		session.startVotePhase()
+		session.startVoteTimer()
 	}
 }
 

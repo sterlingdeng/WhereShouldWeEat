@@ -143,7 +143,7 @@ class App extends Component {
 
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
-        if (msg.nominee.id !== "") {
+        if (msg.nominee.Business !== null) {
           // update nominee
           this.setState(state => {
             return { nomineeList: [...state.nomineeList, msg.nominee] };
