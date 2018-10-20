@@ -24,7 +24,20 @@ class VotingContainer extends Component {
         return (
           <div className="col" key={idx}>
             {data.Business.name}, {idx}
-            <button>Add</button> <button>Remove</button>
+            <button
+              onClick={() => {
+                this.props.handleVote(data.Business.id, "add");
+              }}
+            >
+              Add
+            </button>{" "}
+            <button
+              onClick={() => {
+                this.props.handleVote(data.Business.id, "remove");
+              }}
+            >
+              Remove
+            </button>
           </div>
         );
       });
