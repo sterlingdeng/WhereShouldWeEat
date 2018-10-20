@@ -143,11 +143,17 @@ class App extends Component {
 
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
-        if (msg.nominee.Business !== null) {
+        if (msg.nominee !== null) {
           // update nominee
           this.setState(state => {
-            return { nomineeList: [...state.nomineeList, msg.nominee] };
+            const list = state.nomineeList;
+            const nominee = msg.nominee;
+            return {
+              nomineeList: { ...list, ...nominee }
+            };
           }, console.log(msg));
+        } else if (msg.allReady) {
+          this.setState({ render: renderEnum.VOTING });
         } else {
           // append message to the board
           this.setState({
@@ -337,7 +343,14 @@ class App extends Component {
 
     const crVotingContainer = (() => {
       if (this.state.render === renderEnum.VOTING) {
-        return <VotingContainer />;
+        return (
+          <VotingContainer
+            username={this.state.username}
+            sid={this.state.sid}
+            nomineeList={this.state.nomineeList}
+            wsconn={this.state.wsconn}
+          />
+        );
       }
     })();
 

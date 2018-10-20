@@ -9,11 +9,15 @@ import (
 
 // Msg struct defines the json format that is to be recieved
 type Msg struct {
-	Username string           `json:"username"`
-	Message  string           `json:"msg"`
-	Nominee  [1]NomineeStruct `json:"nominee"`
-	ReadyUp  bool             `json:"readyup"`
-	AllReady bool             `json:"allReady"`
+	Username    string                   `json:"username"`
+	Message     string                   `json:"msg"`
+	Nominee     map[string]NomineeStruct `json:"nominee"`
+	ReadyUp     bool                     `json:"readyup"`
+	AllReady    bool                     `json:"allReady"`
+	VoteNominee struct {
+		BusinessData,
+		Action string
+	} `json:"votenominee"`
 }
 
 // NewHub initializes a new Hub for the chat server. There is 1 Hub per 1 Session

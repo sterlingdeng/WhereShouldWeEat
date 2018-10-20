@@ -27,13 +27,13 @@ const (
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
-	ID              int                      `json:"id"`
-	MaxPartySize    int                      `json:"MaxPartySize"`
-	CurrPartySize   int                      `json:"CurrPartySize"`
-	Users           map[string]*User         `json:"users"`
-	Location        LatLng                   `json:"location"`
-	NomineeList     map[string]NomineeStruct `json:"nomineeList"`
-	Messages        []string                 `json:"messages"`
+	ID              int                       `json:"id"`
+	MaxPartySize    int                       `json:"MaxPartySize"`
+	CurrPartySize   int                       `json:"CurrPartySize"`
+	Users           map[string]*User          `json:"users"`
+	Location        LatLng                    `json:"location"`
+	NomineeList     map[string]*NomineeStruct `json:"nomineeList"`
+	Messages        []string                  `json:"messages"`
 	TimeInitialized time.Time
 	TimeVoteInit    time.Time
 	YelpBizList     map[string]BusinessData // initial list to send to the client (this may not be necessary)
@@ -85,8 +85,22 @@ func (s *Session) addNominee(b *BusinessData) {
 			Business: b,
 			Votes:    0,
 		}
-		s.NomineeList[b.ID] = newNominee
+		s.NomineeList[b.ID] = &newNominee
 		// send information to users that the business list got updated
+	}
+}
+
+func (s *Session) voteNominee(nomid string, vote string, user string) {
+	if !s.nomineeExist(nomid) {
+		log.Fatal("something")
+	}
+
+	if vote == "add" {
+		s.NomineeList[nomid].Votes++
+		s.Users[user].votesLeft--
+	} else {
+		s.NomineeList[nomid].Votes--
+		s.Users[user].votesLeft++
 	}
 }
 
@@ -108,7 +122,28 @@ func (s *Session) startVotePhase() {
 	// set timer
 	// countdown
 	// when timer gets to zero, see what is the highest vote
+	msg := Msg{
+		AllReady: true,
+	}
 
+	s.broadcast <- msg
+
+}
+
+func (s *Session) findMostVotedNominee() []*BusinessData {
+	var mostVoted []*BusinessData
+	acc := 0
+	for _, nominee := range s.NomineeList {
+		if nominee.Votes > acc {
+			acc = nominee.Votes
+			mostVoted = nil
+			mostVoted = append(mostVoted, nominee.Business)
+		} else if nominee.Votes == acc {
+			mostVoted = append(mostVoted, nominee.Business)
+		}
+	}
+	fmt.Print(mostVoted)
+	return mostVoted
 }
 
 func (s *Session) startVoteTimer() {
@@ -128,11 +163,12 @@ func (s *Session) startVoteTimer() {
 			counter--
 		case <-end:
 			//do something
-			fmt.Print("do somehting")
 			return
 		}
 	}
 }
+
+// [ 2 , 4, 5, 5, 3, 1]
 
 type NomineeStruct struct {
 	Business *BusinessData
@@ -189,7 +225,7 @@ func (s *SessionManager) initSession(latlng LatLng) *Session {
 		CurrPartySize:   0,
 		Users:           make(map[string]*User),
 		Location:        latlng,
-		NomineeList:     make(map[string]NomineeStruct, 0), // used to vote
+		NomineeList:     make(map[string]*NomineeStruct, 0), // used to vote
 		Messages:        make([]string, 0),
 		TimeInitialized: time.Now(),
 		YelpBizList:     nil,
@@ -334,12 +370,15 @@ func rtNominate(w http.ResponseWriter, r *http.Request) {
 
 	if !session.nomineeExist(req.Nominee.ID) {
 		session.addNominee(&req.Nominee)
-		arr := [1]NomineeStruct{session.NomineeList[req.Nominee.ID]}
+		entry := make(map[string]NomineeStruct)
+		entry[req.Nominee.ID] = NomineeStruct{
+			Business: &req.Nominee,
+			Votes:    0,
+		}
 
 		msg := Msg{
-
 			Username: req.Username,
-			Nominee:  arr,
+			Nominee:  entry,
 		}
 
 		session.broadcast <- msg
@@ -377,6 +416,32 @@ func readyUp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleVote(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	username := v.Get("username")
+	sid, _ := strconv.Atoi(v.Get("sid"))
+	nomid := v.Get("nomid")
+	vote := v.Get("vote")
+
+	var session *Session
+	var has bool
+
+	if has, session = manager.hasSession(sid); !has {
+		log.Print("Session not found")
+	}
+
+	if !session.hasUser(username) {
+		log.Print("User not found")
+	}
+
+	if !session.nomineeExist(nomid) {
+		log.Print("Nominee not found")
+	}
+
+	session.voteNominee(nomid, vote, username)
+
+}
+
 // Init books var as a slice Book struct
 /*
 Remember that in order to initialize a map, it needs to be done with var something = make(map..) because if it is initialized like var activeSession = map[int]Session initializes a nil map
@@ -407,6 +472,8 @@ func main() {
 
 	// Handle adding a restaurant to the nominate list
 	r.HandleFunc("/nominate", rtNominate).Methods("POST")
+
+	r.HandleFunc("/vote", handleVote).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(port, r))
 
