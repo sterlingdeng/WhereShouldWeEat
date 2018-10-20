@@ -95,6 +95,11 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 		log.Fatal("something")
 	}
 
+	if s.Users[user].votesLeft == 0 {
+		return
+	}
+
+	fmt.Printf("Before: %d\n", s.NomineeList[nomid].Votes)
 	if vote == "add" {
 		s.NomineeList[nomid].Votes++
 		s.Users[user].votesLeft--
@@ -102,6 +107,7 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 		s.NomineeList[nomid].Votes--
 		s.Users[user].votesLeft++
 	}
+	fmt.Printf("After: %d\n", s.NomineeList[nomid].Votes)
 }
 
 func (s Session) areAllUsersReady() bool {
@@ -154,10 +160,10 @@ func (s *Session) startVoteTimer() {
 		select {
 		case <-tick:
 			//do something
-			fmt.Printf("tick %i", counter)
+			fmt.Printf("Tick: %d\n", counter)
 			msg := Msg{
 				Username: "server",
-				Message:  fmt.Sprintf("%i", counter),
+				Message:  fmt.Sprintf("Counter: %d\n", counter),
 			}
 			s.broadcast <- msg
 			counter--
@@ -237,7 +243,7 @@ func (s *SessionManager) initSession(latlng LatLng) *Session {
 	}
 
 	s.add(&session)
-	fmt.Println("Initializing Chat Server\n")
+	fmt.Println("Initializing Chat Server")
 	ChatServerInstance := chatServerFactory()
 	go ChatServerInstance(&session)
 
@@ -310,7 +316,7 @@ func joinSession(w http.ResponseWriter, r *http.Request) {
 		// once session is found, need to connect user to the session, maybe this is where we initiate a websocket connection?
 
 	} else {
-		fmt.Println("session not found")
+		fmt.Println("Session not found")
 
 		// if session is not found, need to send not found to front end
 	}
@@ -391,10 +397,10 @@ func readyUp(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	username := v.Get("username")
 	sid, _ := strconv.Atoi(v.Get("sid"))
-	isReady, boolerr := strconv.ParseBool(v.Get("readyup"))
+	isReady, boolerr := strconv.ParseBool(v.Get("isready"))
 
 	if boolerr != nil {
-		log.Fatal(boolerr)
+		isReady = false
 	}
 
 	var session *Session
@@ -457,7 +463,7 @@ func init() {
 func main() {
 	// Initialize Router
 	r := mux.NewRouter()
-	fmt.Printf("Initializing server on port %s", port)
+	fmt.Printf("Initializing server on port %s \n", port)
 
 	// Router Handlers / Endpoints
 	r.HandleFunc("/CreateSession", createSession).Methods("POST")
