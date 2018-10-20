@@ -90,8 +90,6 @@ func (c *User) writePump() {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-
-			fmt.Print("sending JSON message")
 			c.conn.WriteJSON(&message)
 
 		case <-ticker.C:

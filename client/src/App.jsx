@@ -4,6 +4,7 @@ import Landing from "./components/Landing";
 import GetLocation from "./components/GetLocation";
 import AppContainer from "./components/AppContainer";
 import VotingContainer from "./components/VotingContainer";
+import { assembleURI } from "./helpers/util";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
@@ -47,6 +48,7 @@ class App extends Component {
     this._handleBackBusinessList = this._handleBackBusinessList.bind(this);
     this._handleNextBusinessList = this._handleNextBusinessList.bind(this);
     this._handleReadyUpButtonClick = this._handleReadyUpButtonClick.bind(this);
+    this.handleVoteButton = this.handleVoteButton.bind(this);
   }
 
   usernameTextChange(e) {
@@ -143,11 +145,17 @@ class App extends Component {
 
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
-        if (msg.nominee.id !== "") {
+        if (msg.nominee !== null) {
           // update nominee
           this.setState(state => {
-            return { nomineeList: [...state.nomineeList, msg.nominee] };
+            const list = state.nomineeList;
+            const nominee = msg.nominee;
+            return {
+              nomineeList: { ...list, ...nominee }
+            };
           }, console.log(msg));
+        } else if (msg.allReady) {
+          this.setState({ render: renderEnum.VOTING });
         } else {
           // append message to the board
           this.setState({
@@ -159,19 +167,21 @@ class App extends Component {
   }
 
   async reqYelpData() {
-    let url = "/yelpsearch?";
+    let queryObj = {};
 
     if (this.state.location.lat && this.state.location.lng) {
-      url += `lat=${this.state.location.lat}&lng=${this.state.location.lng}`;
+      queryObj.lat = this.state.location.lat;
+      queryObj.lng = this.state.location.lng;
     } else {
-      url += `location=${this.state.location.loc}`;
+      queryObj.location = this.state.location.loc;
     }
-    url += `&offset=${this.state.yelpOffset}`;
+    queryObj.offset = this.state.yelpOffset;
+
+    const uri = assembleURI("/yelpsearch", queryObj);
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(uri);
       const body = await response.json();
-      console.log(body);
       this.setState({
         bizdata: body
       });
@@ -224,16 +234,17 @@ class App extends Component {
     const newState = !this.state.readyUp;
 
     const fetchurl = state => {
-      let url = "/ReadyUp?";
-      const sid = `sid=${this.state.sid}`;
-      const username = `&username=${this.state.username}`;
-      const isready = `&readyup=${state}`;
-      console.log(isready);
+      // let url = "/ReadyUp?";
+      const queryObj = {
+        sid: this.state.sid,
+        username: this.state.username,
+        isready: state
+      };
 
-      url += sid + username + isready;
-      console.log(url);
+      const uri = assembleURI("/ReadyUp", queryObj);
+
       try {
-        let response = fetch(url);
+        let response = fetch(uri);
         console.log(response);
       } catch (err) {
         console.log(err);
@@ -262,6 +273,22 @@ class App extends Component {
         return { yelpOffset: state.yelpOffset - 20 };
       }, this.reqYelpData);
     }
+  }
+
+  /**
+   * @param {number} nomid enter the nominee id
+   * @param {string} strategy enter "add" to increment the vote
+   */
+  handleVoteButton(nomid, strategy) {
+    const queryObj = {
+      username: this.state.username,
+      sid: this.state.sid,
+      nomid: nomid,
+      vote: strategy
+    };
+    const uri = assembleURI("/vote", queryObj);
+    const response = fetch(uri);
+    console.log(response);
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
@@ -337,7 +364,15 @@ class App extends Component {
 
     const crVotingContainer = (() => {
       if (this.state.render === renderEnum.VOTING) {
-        return <VotingContainer />;
+        return (
+          <VotingContainer
+            username={this.state.username}
+            sid={this.state.sid}
+            nomineeList={this.state.nomineeList}
+            wsconn={this.state.wsconn}
+            handleVote={this.handleVoteButton}
+          />
+        );
       }
     })();
 

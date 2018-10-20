@@ -90,12 +90,9 @@ type MappedYelpResponse struct {
 // ConvertYelpResponseToMappedYelpResponse converts the YelpResponse struc to the mapped data structure, with the key as the ID and value as the BusinessData
 func (y *YelpResponse) ConvertYelpResponseToMappedYelpResponse() *map[string]BusinessData {
 	mappedPtr := make(map[string]BusinessData)
-
-	for index, key := range y.Businesses {
+	for _, key := range y.Businesses {
 		mappedPtr[key.Name] = key
-		fmt.Print(index)
 	}
-
 	return &mappedPtr
 }
 
@@ -128,14 +125,10 @@ func FetchYelpInfoFromYelpEndpoint(loc *YelpSearchParameters) *YelpResponse {
 	YelpRes := YelpResponse{}
 
 	jsonErr := json.Unmarshal(body, &YelpRes)
-	// fmt.Print(YelpRes)
 
 	if jsonErr != nil {
 		log.Fatal(jsonErr)
 	}
 
-	fmt.Printf("Number of records recieved %n \n", len(YelpRes.Businesses))
-
 	return &YelpRes
-
 }

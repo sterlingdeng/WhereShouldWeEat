@@ -34,3 +34,7 @@ func ChatServerInit(session *Session) {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
+
+func chatServerFactory() func(*Session) {
+	return ChatServerInit
+}
