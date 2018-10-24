@@ -3,10 +3,12 @@ import Sidebar from "./Sidebar";
 import GoogleMaps from "./GoogleMaps";
 import ListDisplay from "./ListDisplay";
 import NomineeList from "./NomineeList";
+import Navbar from "./Navbar";
 
 const AppContainer = props => {
   return (
     <div className="container-fluid">
+      <Navbar username={props.username} sid={props.sid} />
       <div className="row">
         <Sidebar
           wsconn={props.wsconn}

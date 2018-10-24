@@ -95,19 +95,19 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 		log.Fatal("something")
 	}
 
-	if s.Users[user].votesLeft == 0 {
-		return
-	}
+	u := s.Users[user]        // user
+	n := s.NomineeList[nomid] // nominee
 
-	fmt.Printf("Before: %d\n", s.NomineeList[nomid].Votes)
-	if vote == "add" {
-		s.NomineeList[nomid].Votes++
-		s.Users[user].votesLeft--
-	} else {
-		s.NomineeList[nomid].Votes--
-		s.Users[user].votesLeft++
+	fmt.Printf("Before: %d\n", n.Votes)
+
+	if vote == "add" && u.votesLeft != 0 {
+		n.Votes++
+		u.votesLeft--
+	} else if vote == "remove" {
+		n.Votes--
+		u.votesLeft++
 	}
-	fmt.Printf("After: %d\n", s.NomineeList[nomid].Votes)
+	fmt.Printf("After: %d\n", n.Votes)
 }
 
 func (s Session) areAllUsersReady() bool {
@@ -129,7 +129,8 @@ func (s *Session) startVotePhase() {
 	// countdown
 	// when timer gets to zero, see what is the highest vote
 	msg := Msg{
-		AllReady: true,
+		AllReady:      true,
+		VoteTimeInSec: 10,
 	}
 
 	s.broadcast <- msg
@@ -148,14 +149,16 @@ func (s *Session) findMostVotedNominee() []*BusinessData {
 			mostVoted = append(mostVoted, nominee.Business)
 		}
 	}
-	fmt.Print(mostVoted)
+	for _, biz := range mostVoted {
+		fmt.Print(biz.ID)
+	}
 	return mostVoted
 }
 
 func (s *Session) startVoteTimer() {
 	tick := time.Tick(time.Second)
-	end := time.After(60 * time.Second)
-	counter := 60
+	end := time.After(10 * time.Second)
+	counter := 10
 	for {
 		select {
 		case <-tick:
@@ -168,7 +171,11 @@ func (s *Session) startVoteTimer() {
 			s.broadcast <- msg
 			counter--
 		case <-end:
-			//do something
+			winners := s.findMostVotedNominee()
+			msg := Msg{
+				Winner: winners,
+			}
+			s.broadcast <- msg
 			return
 		}
 	}

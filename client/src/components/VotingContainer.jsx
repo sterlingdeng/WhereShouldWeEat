@@ -1,20 +1,10 @@
 import React, { Component } from "react";
 
 class VotingContainer extends Component {
-  constructor() {
+  constructor(props) {
     super();
     this.votesLeft = 3;
   }
-
-  handleAddVote() {
-    if (this.votesLeft > 0) {
-      //
-    } else {
-      return;
-    }
-  }
-
-  handleRemoveVote() {}
 
   render() {
     let voteJSX;
@@ -43,7 +33,21 @@ class VotingContainer extends Component {
       });
     }
 
-    return <div className="col align-content-center">{voteJSX}</div>;
+    let time;
+    if (this.props.voteTime) {
+      let timeleft = this.props.voteTime;
+      time = setInterval(() => {
+        --this.timeLeft;
+        return <div>{this.timeLeft}</div>;
+      }, 1000);
+    }
+
+    return (
+      <div className="col align-content-center">
+        {time}
+        {voteJSX}
+      </div>
+    );
   }
 }
 

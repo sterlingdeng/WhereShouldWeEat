@@ -4,13 +4,16 @@ import Landing from "./components/Landing";
 import GetLocation from "./components/GetLocation";
 import AppContainer from "./components/AppContainer";
 import VotingContainer from "./components/VotingContainer";
+import Winner from "./components/Winner";
 import { assembleURI } from "./helpers/util";
+import Navbar from "./components/Navbar";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
   SESSION_LANDING: 2, // once a location (latlng) is found or inputted
   LOGGED_IN: 3, // logged in
-  VOTING: 4
+  VOTING: 4,
+  WINNER: 5
 };
 
 class App extends Component {
@@ -26,7 +29,8 @@ class App extends Component {
       wsconn: null,
       messages: [],
       nomineeList: [],
-      readyUp: false
+      readyUp: false,
+      winner: undefined
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -145,6 +149,7 @@ class App extends Component {
 
       conn.onmessage = evt => {
         let msg = JSON.parse(evt.data);
+        console.log(msg);
         if (msg.nominee !== null) {
           // update nominee
           this.setState(state => {
@@ -155,7 +160,14 @@ class App extends Component {
             };
           }, console.log(msg));
         } else if (msg.allReady) {
-          this.setState({ render: renderEnum.VOTING });
+          this.setState({
+            render: renderEnum.VOTING
+          });
+        } else if (msg.winner) {
+          this.setState({
+            winner: msg.winner,
+            render: renderEnum.WINNER
+          });
         } else {
           // append message to the board
           this.setState({
@@ -341,6 +353,9 @@ class App extends Component {
         // this line for production
         return (
           <AppContainer
+            // for navbar basic user / session information
+            username={this.state.username}
+            sid={this.state.sid}
             // for google maps
             location={this.state.location}
             getLocation={this.getLocation}
@@ -371,8 +386,15 @@ class App extends Component {
             nomineeList={this.state.nomineeList}
             wsconn={this.state.wsconn}
             handleVote={this.handleVoteButton}
+            voteTime={this.state.voteTimeInSec}
           />
         );
+      }
+    })();
+
+    const crWinner = (() => {
+      if (this.state.render === renderEnum.WINNER) {
+        return <Winner winner={this.state.winner} />;
       }
     })();
 
@@ -382,6 +404,7 @@ class App extends Component {
         {crLanding}
         {crAppContainer}
         {crVotingContainer}
+        {crWinner}
       </div>
     );
   }

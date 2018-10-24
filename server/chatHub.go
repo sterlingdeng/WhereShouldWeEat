@@ -9,12 +9,14 @@ import (
 
 // Msg struct defines the json format that is to be recieved
 type Msg struct {
-	Username    string                   `json:"username"`
-	Message     string                   `json:"msg"`
-	Nominee     map[string]NomineeStruct `json:"nominee"`
-	ReadyUp     bool                     `json:"readyup"`
-	AllReady    bool                     `json:"allReady"`
-	VoteNominee struct {
+	Username      string                   `json:"username"`
+	Message       string                   `json:"msg"`
+	Nominee       map[string]NomineeStruct `json:"nominee"`
+	ReadyUp       bool                     `json:"readyup"`
+	AllReady      bool                     `json:"allReady"`
+	Winner        []*BusinessData          `json:"winner"`
+	VoteTimeInSec int                      `json:"voteTime"`
+	VoteNominee   struct {
 		BusinessData,
 		Action string
 	} `json:"votenominee"`
