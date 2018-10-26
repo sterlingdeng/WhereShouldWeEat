@@ -6,7 +6,6 @@ import AppContainer from "./components/AppContainer";
 import VotingContainer from "./components/VotingContainer";
 import Winner from "./components/Winner";
 import { assembleURI } from "./helpers/util";
-import Navbar from "./components/Navbar";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
@@ -148,33 +147,44 @@ class App extends Component {
       };
 
       conn.onmessage = evt => {
-        let msg = JSON.parse(evt.data);
+        const msg = JSON.parse(evt.data);
         console.log(msg);
-        if (msg.nominee !== null) {
-          // update nominee
-          this.setState(state => {
-            const list = state.nomineeList;
-            const nominee = msg.nominee;
-            return {
-              nomineeList: { ...list, ...nominee }
-            };
-          }, console.log(msg));
-        } else if (msg.allReady) {
-          this.setState({
-            render: renderEnum.VOTING
-          });
-        } else if (msg.winner) {
-          this.setState({
-            winner: msg.winner,
-            render: renderEnum.WINNER
-          });
-        } else {
-          // append message to the board
-          this.setState({
-            messages: [...this.state.messages, `${msg.username}: ${msg.msg}`]
-          });
-        }
+        this.handleIncomingWSData(msg);
       };
+    }
+  }
+
+  handleIncomingWSData(msg) {
+    const body = msg.body || undefined;
+
+    switch (msg.type) {
+      case "ChatMsg":
+        this.setState({
+          messages: [...this.state.messages, `${body.username}: ${body.msg}`]
+        });
+        break;
+      case "NomineeMsg":
+        this.setState(state => {
+          const list = state.nomineeList;
+          const nominee = body.nominee;
+          return {
+            nomineeList: { ...list, ...nominee }
+          };
+        }, console.log(msg));
+        break;
+      case "StartVote":
+        this.setState({
+          render: renderEnum.VOTING
+        });
+        break;
+      case "Winner":
+        this.setState({
+          winner: body.winner,
+          render: renderEnum.WINNER
+        });
+        break;
+      default:
+        console.log("Unexpected message type");
     }
   }
 
@@ -361,7 +371,6 @@ class App extends Component {
             getLocation={this.getLocation}
             // for chat service
             wsconn={this.state.wsconn}
-            username={this.state.username}
             messages={this.state.messages}
             // for business list
             yelpBusinessList={this.state.bizdata}
