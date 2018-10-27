@@ -14,17 +14,48 @@ type ChatMsg struct {
 	Message  string `json:"message"`
 }
 
+// NomineeMsg is used to help broadcast the updated nominee list to users in the session.
+type NomineeMsg struct {
+	Username string                    `json:"username"`
+	Nominee  map[string]*NomineeStruct `json:"nominee"`
+}
+
+// StartVote provides the trigger to egin voting phase
+type StartVote struct {
+	AllReady  bool `json:"allReady"`
+	VoteCount int  `json:"votecount"`
+}
+
+type VotingPhase struct {
+	Nomid  string `json:"nomid"`
+	Action string `json:"action"`
+	User   string `json:"user"`
+}
+
+type updateUserVotesLeft struct {
+	User      string `json:"user"`
+	VotesLeft int    `json:"votesleft"`
+}
+
+type voteTick struct {
+	Tick int `json:"tick"`
+}
+
+type Winner struct {
+	Winner []*BusinessData `json:"winner"`
+}
+
+type ReadEnvelope struct {
+	Type string          `json:"type"`
+	body json.RawMessage `json:"body"`
+}
+
 func (c ChatMsg) packAndSend(s *Session) {
 	envelope := Envelope{
 		Type: "ChatMsg",
 		Body: c,
 	}
 	s.broadcast <- envelope
-}
-
-type NomineeMsg struct {
-	Username string                   `json:"username"`
-	Nominee  map[string]NomineeStruct `json:"nominee"`
 }
 
 func (n NomineeMsg) PackAndSend(s *Session) {
@@ -35,11 +66,6 @@ func (n NomineeMsg) PackAndSend(s *Session) {
 	s.broadcast <- envelope
 }
 
-type StartVote struct {
-	AllReady      bool `json:"allReady"`
-	VoteTimeInSec int  `json:"voteTime"`
-}
-
 func (st StartVote) PackAndSend(s *Session) {
 	envelope := Envelope{
 		Type: "StartVote",
@@ -48,8 +74,19 @@ func (st StartVote) PackAndSend(s *Session) {
 	s.broadcast <- envelope
 }
 
-type Winner struct {
-	Winner []*BusinessData `json:"winner"`
+func (v VotingPhase) PackAndSend(s *Session) {
+	envelope := Envelope{
+		Type: "VotingPhase",
+		Body: v,
+	}
+	s.broadcast <- envelope
+}
+func (t voteTick) PackAndSend(s *Session) {
+	envelope := Envelope{
+		Type: "voteTick",
+		Body: t,
+	}
+	s.broadcast <- envelope
 }
 
 func (w Winner) PackAndSend(s *Session) {
@@ -58,11 +95,6 @@ func (w Winner) PackAndSend(s *Session) {
 		Body: w,
 	}
 	s.broadcast <- envelope
-}
-
-type ReadEnvelope struct {
-	Type string          `json:"type"`
-	body json.RawMessage `json:"body"`
 }
 
 type Msg struct {

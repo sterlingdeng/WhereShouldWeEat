@@ -103,10 +103,29 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 	if vote == "add" && u.votesLeft != 0 {
 		n.Votes++
 		u.votesLeft--
-	} else if vote == "remove" {
+	} else if vote == "remove" && n.Votes > 0 && u.votesLeft != votesPerUser {
 		n.Votes--
 		u.votesLeft++
 	}
+
+	votesLeftMsg := updateUserVotesLeft{
+		User:      u.Username,
+		VotesLeft: u.votesLeft,
+	}
+
+	env := Envelope{
+		Type: "votesLeftMsg",
+		Body: votesLeftMsg,
+	}
+	s.broadcast <- env
+
+	// NomineeMsg used to send the updated vote count to the user
+	msg := NomineeMsg{
+		Nominee: s.NomineeList,
+	}
+
+	msg.PackAndSend(s)
+
 	fmt.Printf("After: %d\n", n.Votes)
 }
 
@@ -124,8 +143,9 @@ func (s Session) areAllUsersReady() bool {
 func (s *Session) startVotePhase() {
 
 	msg := StartVote{
-		AllReady:      true,
-		VoteTimeInSec: 10,
+		AllReady:  true,
+		VoteCount: votesPerUser,
+		// add nominee list here
 	}
 
 	msg.PackAndSend(s)
@@ -152,18 +172,17 @@ func (s *Session) findMostVotedNominee() []*BusinessData {
 
 func (s *Session) startVoteTimer() {
 	tick := time.Tick(time.Second)
-	end := time.After(10 * time.Second)
-	counter := 10
+	end := time.After(999 * time.Second)
+	counter := 999
 	for {
 		select {
 		case <-tick:
-			fmt.Printf("Tick: %d\n", counter)
+			fmt.Printf("Timeleft: %d\n", counter)
 
-			msg := ChatMsg{
-				Username: "server",
-				Message:  fmt.Sprintf("Counter: %d\n", counter),
+			msg := voteTick{
+				Tick: counter,
 			}
-			msg.packAndSend(s)
+			msg.PackAndSend(s)
 			counter--
 
 		case <-end:
@@ -385,7 +404,7 @@ func rtNominate(w http.ResponseWriter, r *http.Request) {
 
 		msg := NomineeMsg{
 			Username: req.Username,
-			Nominee:  entry,
+			Nominee:  session.NomineeList,
 		}
 
 		msg.PackAndSend(session)
