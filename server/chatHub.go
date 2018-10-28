@@ -8,19 +8,6 @@ import (
 )
 
 // Msg struct defines the json format that is to be recieved
-type Msg struct {
-	Username      string                   `json:"username"`
-	Message       string                   `json:"msg"`
-	Nominee       map[string]NomineeStruct `json:"nominee"`
-	ReadyUp       bool                     `json:"readyup"`
-	AllReady      bool                     `json:"allReady"`
-	Winner        []*BusinessData          `json:"winner"`
-	VoteTimeInSec int                      `json:"voteTime"`
-	VoteNominee   struct {
-		BusinessData,
-		Action string
-	} `json:"votenominee"`
-}
 
 // NewHub initializes a new Hub for the chat server. There is 1 Hub per 1 Session
 
@@ -56,9 +43,7 @@ func (s *Session) run() {
 			}
 
 		case message := <-s.read:
-			// if message contains business info, need to add to busines list
-			// if message contains Message.. add to Messages
-			// fmt.Printf("Reading Message")
+
 			idMessage := message.Username + ": " + message.Message
 			s.Messages = append(s.Messages, idMessage)
 

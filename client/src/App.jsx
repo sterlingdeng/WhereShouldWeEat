@@ -6,7 +6,6 @@ import AppContainer from "./components/AppContainer";
 import VotingContainer from "./components/VotingContainer";
 import Winner from "./components/Winner";
 import { assembleURI } from "./helpers/util";
-import Navbar from "./components/Navbar";
 
 const renderEnum = {
   GET_LOCATION: 1, // if location is undefined
@@ -14,6 +13,12 @@ const renderEnum = {
   LOGGED_IN: 3, // logged in
   VOTING: 4,
   WINNER: 5
+};
+
+const sessionPhase = {
+  nominating: 0,
+  voting: 1,
+  complete: 2
 };
 
 class App extends Component {
@@ -30,7 +35,9 @@ class App extends Component {
       messages: [],
       nomineeList: [],
       readyUp: false,
-      winner: undefined
+      winner: undefined,
+      votesLeft: undefined,
+      votingTimeLeft: undefined
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -120,14 +127,26 @@ class App extends Component {
     let response = await fetch(uri);
 
     let data = await response.json();
-    console.log(data);
-    if (data.id) {
-      this.setState({
-        bizdata: data.YelpBizList,
-        render: renderEnum.LOGGED_IN,
-        nomineeList: data.nomineeList
-      });
+
+    switch (data.SessionPhase) {
+      case sessionPhase.nominating:
+        this.setState({
+          bizdata: data.YelpBizList,
+          render: renderEnum.LOGGED_IN,
+          nomineeList: data.nomineeList
+        });
+        break;
+      case sessionPhase.voting:
+        this.setState({
+          bizdata: data.YelpBizList,
+          render: renderEnum.VOTING,
+          nomineeList: data.nomineeList
+        });
+        break;
+      case sessionPhase.complete:
+        break;
     }
+    console.log(data);
 
     return data;
   }
@@ -147,34 +166,57 @@ class App extends Component {
         console.log(evt);
       };
 
-      conn.onmessage = evt => {
-        let msg = JSON.parse(evt.data);
-        console.log(msg);
-        if (msg.nominee !== null) {
-          // update nominee
-          this.setState(state => {
-            const list = state.nomineeList;
-            const nominee = msg.nominee;
-            return {
-              nomineeList: { ...list, ...nominee }
-            };
-          }, console.log(msg));
-        } else if (msg.allReady) {
+      conn.onmessage = async evt => {
+        const msg = await JSON.parse(evt.data);
+        this.handleIncomingWSData(msg);
+      };
+    }
+  }
+
+  handleIncomingWSData(msg) {
+    const body = msg.body || undefined;
+
+    switch (msg.type) {
+      case "ChatMsg":
+        this.setState({
+          messages: [...this.state.messages, `${body.username}: ${body.msg}`]
+        });
+        break;
+      case "NomineeMsg":
+        this.setState(state => {
+          const nominee = body.nominee;
+          return {
+            nomineeList: nominee
+          };
+        });
+        break;
+      case "StartVote":
+        this.setState({
+          render: renderEnum.VOTING,
+          votesLeft: body.votecount
+        });
+        break;
+      case "votesLeftMsg":
+        if (this.state.username === body.user) {
           this.setState({
-            render: renderEnum.VOTING
-          });
-        } else if (msg.winner) {
-          this.setState({
-            winner: msg.winner,
-            render: renderEnum.WINNER
-          });
-        } else {
-          // append message to the board
-          this.setState({
-            messages: [...this.state.messages, `${msg.username}: ${msg.msg}`]
+            votesLeft: body.votesleft
           });
         }
-      };
+        break;
+      case "Winner":
+        this.setState({
+          winner: body.winner,
+          render: renderEnum.WINNER
+        });
+        break;
+      case "voteTick":
+        this.setState({
+          votingTimeLeft: body.tick
+        });
+        break;
+
+      default:
+        console.log("Unexpected message type");
     }
   }
 
@@ -238,7 +280,6 @@ class App extends Component {
       },
       body: payloadJSON
     });
-    console.log(response);
   }
 
   _handleReadyUpButtonClick() {
@@ -269,7 +310,6 @@ class App extends Component {
         render: renderEnum.LOGGED_IN
       };
     }, fetchurl(newState));
-    console.log("reached");
   }
 
   _handleNextBusinessList() {
@@ -300,7 +340,6 @@ class App extends Component {
     };
     const uri = assembleURI("/vote", queryObj);
     const response = fetch(uri);
-    console.log(response);
   }
 
   // Gets the {lat,lng} of the users. If geolocation does not exists or geolocation fails to get the position, the location state will be set to USA_LAT_LNG, which is the {lat, lng} for the center of the US.
@@ -361,7 +400,6 @@ class App extends Component {
             getLocation={this.getLocation}
             // for chat service
             wsconn={this.state.wsconn}
-            username={this.state.username}
             messages={this.state.messages}
             // for business list
             yelpBusinessList={this.state.bizdata}
@@ -383,10 +421,11 @@ class App extends Component {
           <VotingContainer
             username={this.state.username}
             sid={this.state.sid}
+            votesLeft={this.state.votesLeft}
             nomineeList={this.state.nomineeList}
             wsconn={this.state.wsconn}
             handleVote={this.handleVoteButton}
-            voteTime={this.state.voteTimeInSec}
+            voteTime={this.state.votingTimeLeft}
           />
         );
       }

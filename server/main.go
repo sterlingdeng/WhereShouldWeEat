@@ -24,6 +24,12 @@ const (
 	wsURL               string = "localhost" + wsport
 )
 
+const (
+	nominating = iota
+	voting
+	complete
+)
+
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
@@ -34,15 +40,16 @@ type Session struct {
 	Location        LatLng                    `json:"location"`
 	NomineeList     map[string]*NomineeStruct `json:"nomineeList"`
 	Messages        []string                  `json:"messages"`
+	SessionPhase    int                       `json:"SessionPhase"`
 	TimeInitialized time.Time
 	TimeVoteInit    time.Time
 	YelpBizList     map[string]BusinessData // initial list to send to the client (this may not be necessary)
 	state           int
 	clients         map[*User]bool
-	broadcast       chan Msg   // Inbound messages from the clients
-	register        chan *User // Register request from clients
-	unregister      chan *User // Unregister request from  clients
-	read            chan Msg   // Read message from client and adds info to db
+	broadcast       chan interface{} // Inbound messages from the clients
+	register        chan *User       // Register request from clients
+	unregister      chan *User       // Unregister request from  clients
+	read            chan Msg         // Read message from client and adds info to db
 }
 
 func (s Session) hasUser(uid string) bool {
@@ -103,10 +110,29 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 	if vote == "add" && u.votesLeft != 0 {
 		n.Votes++
 		u.votesLeft--
-	} else if vote == "remove" {
+	} else if vote == "remove" && n.Votes > 0 && u.votesLeft != votesPerUser {
 		n.Votes--
 		u.votesLeft++
 	}
+
+	votesLeftMsg := updateUserVotesLeft{
+		User:      u.Username,
+		VotesLeft: u.votesLeft,
+	}
+
+	env := Envelope{
+		Type: "votesLeftMsg",
+		Body: votesLeftMsg,
+	}
+	s.broadcast <- env
+
+	// NomineeMsg used to send the updated vote count to the user
+	msg := NomineeMsg{
+		Nominee: s.NomineeList,
+	}
+
+	msg.PackAndSend(s)
+
 	fmt.Printf("After: %d\n", n.Votes)
 }
 
@@ -122,18 +148,14 @@ func (s Session) areAllUsersReady() bool {
 }
 
 func (s *Session) startVotePhase() {
-	//	need to send responses to the users..
 
-	// change state so that in voting phase
-	// set timer
-	// countdown
-	// when timer gets to zero, see what is the highest vote
-	msg := Msg{
-		AllReady:      true,
-		VoteTimeInSec: 10,
+	msg := StartVote{
+		AllReady:  true,
+		VoteCount: votesPerUser,
+		// add nominee list here
 	}
 
-	s.broadcast <- msg
+	msg.PackAndSend(s)
 
 }
 
@@ -157,31 +179,29 @@ func (s *Session) findMostVotedNominee() []*BusinessData {
 
 func (s *Session) startVoteTimer() {
 	tick := time.Tick(time.Second)
-	end := time.After(10 * time.Second)
-	counter := 10
+	end := time.After(999 * time.Second)
+	counter := 999
 	for {
 		select {
 		case <-tick:
-			//do something
-			fmt.Printf("Tick: %d\n", counter)
-			msg := Msg{
-				Username: "server",
-				Message:  fmt.Sprintf("Counter: %d\n", counter),
+			fmt.Printf("Timeleft: %d\n", counter)
+
+			msg := voteTick{
+				Tick: counter,
 			}
-			s.broadcast <- msg
+			msg.PackAndSend(s)
 			counter--
+
 		case <-end:
 			winners := s.findMostVotedNominee()
-			msg := Msg{
+			msg := Winner{
 				Winner: winners,
 			}
-			s.broadcast <- msg
+			msg.PackAndSend(s)
 			return
 		}
 	}
 }
-
-// [ 2 , 4, 5, 5, 3, 1]
 
 type NomineeStruct struct {
 	Business *BusinessData
@@ -194,8 +214,8 @@ type User struct {
 	ReadyUp   bool   `json:"ready"`
 	votesLeft int
 	session   *Session
-	conn      *websocket.Conn // Websocket Connection
-	send      chan Msg        // Buffered channel of outbound messages
+	conn      *websocket.Conn  // Websocket Connection
+	send      chan interface{} // Buffered channel of outbound messages
 }
 
 // SessionManager manages all active sessions and provides methods to handle sessions
@@ -240,10 +260,11 @@ func (s *SessionManager) initSession(latlng LatLng) *Session {
 		Location:        latlng,
 		NomineeList:     make(map[string]*NomineeStruct, 0), // used to vote
 		Messages:        make([]string, 0),
+		SessionPhase:    nominating,
 		TimeInitialized: time.Now(),
 		YelpBizList:     nil,
 		clients:         make(map[*User]bool),
-		broadcast:       make(chan Msg),
+		broadcast:       make(chan interface{}),
 		register:        make(chan *User),
 		unregister:      make(chan *User),
 		read:            make(chan Msg),
@@ -389,12 +410,12 @@ func rtNominate(w http.ResponseWriter, r *http.Request) {
 			Votes:    0,
 		}
 
-		msg := Msg{
+		msg := NomineeMsg{
 			Username: req.Username,
-			Nominee:  entry,
+			Nominee:  session.NomineeList,
 		}
 
-		session.broadcast <- msg
+		msg.PackAndSend(session)
 	}
 }
 
@@ -422,8 +443,10 @@ func readyUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Users[username].ReadyUp = isReady
-	fmt.Printf("\n %b", session.areAllUsersReady())
+
 	if session.areAllUsersReady() {
+		session.SessionPhase = voting
+		fmt.Printf("Session Phase: %d", session.SessionPhase)
 		session.startVotePhase()
 		session.startVoteTimer()
 	}

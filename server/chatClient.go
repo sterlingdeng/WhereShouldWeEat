@@ -107,7 +107,7 @@ func serveWs(session *Session, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	user := &User{session: session, conn: conn, send: make(chan Msg, 256)}
+	user := &User{session: session, conn: conn, send: make(chan interface{}, 256)}
 	user.session.register <- user
 
 	// Allow collection of memory referenced by the caller by doing all work in
