@@ -37,7 +37,8 @@ class App extends Component {
       readyUp: false,
       winner: undefined,
       votesLeft: undefined,
-      votingTimeLeft: undefined
+      votingTimeLeft: undefined,
+      userVotedFor: {}
     };
     this.usernameTextChange = this.usernameTextChange.bind(this);
     this.locationTextChange = this.locationTextChange.bind(this);
@@ -107,7 +108,6 @@ class App extends Component {
     });
 
     const data = await response.json();
-    console.log(data);
     this.setState({
       sid: data.id,
       bizdata: data
@@ -197,9 +197,11 @@ class App extends Component {
         });
         break;
       case "votesLeftMsg":
+        console.log(body);
         if (this.state.username === body.user) {
           this.setState({
-            votesLeft: body.votesleft
+            votesLeft: body.votesleft,
+            userVotedFor: body.votedfor
           });
         }
         break;
@@ -426,6 +428,7 @@ class App extends Component {
             wsconn={this.state.wsconn}
             handleVote={this.handleVoteButton}
             voteTime={this.state.votingTimeLeft}
+            userVotedFor={this.state.userVotedFor}
           />
         );
       }

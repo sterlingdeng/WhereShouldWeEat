@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxPartySize int = 10
-	votesPerUser int = 3
+	maxPartySize      int = 10
+	StartingVoteCount int = 3
 	// voteTimeInSec       int    = 60
 	newSessionRandomInt int    = 9999
 	currURL             string = "localhost" + port
@@ -106,18 +106,22 @@ func (s *Session) voteNominee(nomid string, vote string, user string) {
 	n := s.NomineeList[nomid] // nominee
 
 	fmt.Printf("Before: %d\n", n.Votes)
+	fmt.Printf("User: %s, Votesleft: %d", user, u.votesLeft)
 
-	if vote == "add" && u.votesLeft != 0 {
+	if vote == "add" && u.hasVotesLeft() && !u.hasVotedForNominee(nomid) {
 		n.Votes++
 		u.votesLeft--
-	} else if vote == "remove" && n.Votes > 0 && u.votesLeft != votesPerUser {
+		u.votedFor[nomid] = true
+	} else if vote == "remove" && u.hasVotedForNominee(nomid) {
 		n.Votes--
 		u.votesLeft++
+		delete(u.votedFor, nomid)
 	}
 
 	votesLeftMsg := updateUserVotesLeft{
 		User:      u.Username,
 		VotesLeft: u.votesLeft,
+		VotedFor:  u.votedFor,
 	}
 
 	env := Envelope{
@@ -151,7 +155,7 @@ func (s *Session) startVotePhase() {
 
 	msg := StartVote{
 		AllReady:  true,
-		VoteCount: votesPerUser,
+		VoteCount: StartingVoteCount,
 		// add nominee list here
 	}
 
@@ -184,12 +188,12 @@ func (s *Session) startVoteTimer() {
 	for {
 		select {
 		case <-tick:
-			fmt.Printf("Timeleft: %d\n", counter)
+			// fmt.Printf("Timeleft: %d\n", counter)
 
-			msg := voteTick{
-				Tick: counter,
-			}
-			msg.PackAndSend(s)
+			// msg := voteTick{
+			// 	Tick: counter,
+			// }
+			// msg.PackAndSend(s)
 			counter--
 
 		case <-end:
@@ -213,9 +217,24 @@ type User struct {
 	Username  string `json:"username"`
 	ReadyUp   bool   `json:"ready"`
 	votesLeft int
+	votedFor  map[string]bool
 	session   *Session
 	conn      *websocket.Conn  // Websocket Connection
 	send      chan interface{} // Buffered channel of outbound messages
+}
+
+func (u User) hasVotesLeft() bool {
+	if u.votesLeft > 0 {
+		return true
+	}
+	return false
+}
+
+func (u User) hasVotedForNominee(n string) bool {
+	if _, has := u.votedFor[n]; has {
+		return true
+	}
+	return false
 }
 
 // SessionManager manages all active sessions and provides methods to handle sessions
@@ -278,6 +297,16 @@ func (s *SessionManager) initSession(latlng LatLng) *Session {
 	return &session
 }
 
+func createUser(username string) User {
+	user := User{
+		Username:  username,
+		ReadyUp:   false,
+		votedFor:  make(map[string]bool),
+		votesLeft: StartingVoteCount,
+	}
+	return user
+}
+
 /*
 func createSession
 type: "POST"
@@ -304,11 +333,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	user := User{
-		Username:  req.Username,
-		ReadyUp:   false,
-		votesLeft: votesPerUser,
-	}
+	user := createUser(req.Username)
 
 	session := manager.initSession(req.Latlng)
 	session.addUser(user)
@@ -333,13 +358,13 @@ query parameters: [id, username]
 func joinSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	v := r.URL.Query()
-	newUsername := v.Get("username")
+	username := v.Get("username")
 	seshID, _ := strconv.Atoi(v.Get("id"))
 
 	if has, sessionPtr := manager.hasSession(seshID); has {
 
-		newUser := User{Username: newUsername}
-		sessionPtr.addUser(newUser)
+		user := createUser(username)
+		sessionPtr.addUser(user)
 		json.NewEncoder(w).Encode(manager.ActiveSessions[seshID])
 		// once session is found, need to connect user to the session, maybe this is where we initiate a websocket connection?
 

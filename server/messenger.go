@@ -33,8 +33,9 @@ type VotingPhase struct {
 }
 
 type updateUserVotesLeft struct {
-	User      string `json:"user"`
-	VotesLeft int    `json:"votesleft"`
+	User      string          `json:"user"`
+	VotesLeft int             `json:"votesleft"`
+	VotedFor  map[string]bool `json:"votedfor"`
 }
 
 type voteTick struct {

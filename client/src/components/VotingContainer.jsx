@@ -11,6 +11,10 @@ class VotingContainer extends Component {
     if (Object.keys(this.props.nomineeList).length !== 0) {
       const businesses = Object.values(this.props.nomineeList);
       voteJSX = businesses.map((data, idx) => {
+        let votedForJSX;
+        if (this.props.userVotedFor.hasOwnProperty(data.Business.id)) {
+          votedForJSX = <div>Voted For!!</div>;
+        }
         return (
           <div className="col" key={idx}>
             {data.Business.name}, Vote Count: {data.Votes}
@@ -28,6 +32,7 @@ class VotingContainer extends Component {
             >
               Remove
             </button>
+            {votedForJSX}
           </div>
         );
       });
