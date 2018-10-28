@@ -15,6 +15,12 @@ const renderEnum = {
   WINNER: 5
 };
 
+const sessionPhase = {
+  nominating: 0,
+  voting: 1,
+  complete: 2
+};
+
 class App extends Component {
   constructor() {
     super();
@@ -121,14 +127,26 @@ class App extends Component {
     let response = await fetch(uri);
 
     let data = await response.json();
-    console.log(data);
-    if (data.id) {
-      this.setState({
-        bizdata: data.YelpBizList,
-        render: renderEnum.LOGGED_IN,
-        nomineeList: data.nomineeList
-      });
+
+    switch (data.SessionPhase) {
+      case sessionPhase.nominating:
+        this.setState({
+          bizdata: data.YelpBizList,
+          render: renderEnum.LOGGED_IN,
+          nomineeList: data.nomineeList
+        });
+        break;
+      case sessionPhase.voting:
+        this.setState({
+          bizdata: data.YelpBizList,
+          render: renderEnum.VOTING,
+          nomineeList: data.nomineeList
+        });
+        break;
+      case sessionPhase.complete:
+        break;
     }
+    console.log(data);
 
     return data;
   }

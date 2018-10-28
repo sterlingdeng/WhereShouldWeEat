@@ -24,6 +24,12 @@ const (
 	wsURL               string = "localhost" + wsport
 )
 
+const (
+	nominating = iota
+	voting
+	complete
+)
+
 // Session struct to handle parties
 // if the first letter of each attribute in struct is not capitalized... it will not export.
 type Session struct {
@@ -34,6 +40,7 @@ type Session struct {
 	Location        LatLng                    `json:"location"`
 	NomineeList     map[string]*NomineeStruct `json:"nomineeList"`
 	Messages        []string                  `json:"messages"`
+	SessionPhase    int                       `json:"SessionPhase"`
 	TimeInitialized time.Time
 	TimeVoteInit    time.Time
 	YelpBizList     map[string]BusinessData // initial list to send to the client (this may not be necessary)
@@ -253,6 +260,7 @@ func (s *SessionManager) initSession(latlng LatLng) *Session {
 		Location:        latlng,
 		NomineeList:     make(map[string]*NomineeStruct, 0), // used to vote
 		Messages:        make([]string, 0),
+		SessionPhase:    nominating,
 		TimeInitialized: time.Now(),
 		YelpBizList:     nil,
 		clients:         make(map[*User]bool),
@@ -435,8 +443,10 @@ func readyUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Users[username].ReadyUp = isReady
-	fmt.Printf("\n %b", session.areAllUsersReady())
+
 	if session.areAllUsersReady() {
+		session.SessionPhase = voting
+		fmt.Printf("Session Phase: %d", session.SessionPhase)
 		session.startVotePhase()
 		session.startVoteTimer()
 	}
